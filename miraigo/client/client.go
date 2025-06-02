@@ -8,7 +8,6 @@ import (
 	"math/rand"
 	"net/http"
 	"net/netip"
-	"regexp"
 	"runtime/debug"
 	"sort"
 	"strconv"
@@ -680,27 +679,6 @@ func originalStringFromInt64(n int64) (string, bool) {
 	return originalString, exists
 }
 
-// 假设 wsmsg.Message 是一个字符串，包含了形如 [CQ:at=xxxx] 的数据
-func extractAtElements(str string) []*message.AtElement {
-	re := regexp.MustCompile(`\[CQ:at=(\d+)\]`) // 正则表达式匹配[CQ:at=xxxx]其中xxxx是数字
-	matches := re.FindAllStringSubmatch(str, -1)
-
-	var elements []*message.AtElement
-	for _, match := range matches {
-		if len(match) == 2 {
-			target, err := strconv.ParseInt(match[1], 10, 64) // 转化xxxx为int64
-			if err != nil {
-				continue // 如果转化失败，跳过此次循环
-			}
-			elements = append(elements, &message.AtElement{
-				Target: target,
-				// 如果有 Display 和 SubType 的信息，也可以在这里赋值
-			})
-		}
-	}
-	return elements
-}
-
 func parseEcho(echo string) (string, string) {
 	parts := strings.SplitN(echo, ":", 2)
 	if len(parts) == 2 {
@@ -1309,18 +1287,6 @@ func (c *QQClient) handleMessage(wsmsg WebSocketMessage) {
 	}
 }
 
-func handleMsgContent(MessageContent string, elements []message.IMessageElement) {
-	// 替换字符串中的"\/"为"/"
-	MessageContent = strings.Replace(MessageContent, "\\/", "/", -1)
-	// 使用extractAtElements函数从wsmsg.Message中提取At元素
-	atElements := extractAtElements(MessageContent)
-	// 将提取的At元素和文本元素都添加到g.Elements
-	elements = append(elements, &message.TextElement{Content: MessageContent})
-	for _, elem := range atElements {
-		elements = append(elements, elem)
-	}
-}
-
 type miraiMessage interface {
 	GetSender() *message.Sender
 	GetTime() int32
@@ -1755,8 +1721,6 @@ func (c *QQClient) ChatMsgHandler(wsmsg WebSocketMessage, miraiMsg any) any {
 		}
 	}()
 	switch wsmsg.MessageContent.(type) {
-	case string:
-		handleMsgContent(wsmsg.MessageContent.(string), elements)
 	case []interface{}:
 		elements = handleMixMsg(wsmsg.MessageContent.([]interface{}), miraiMsg, isGroupMsg)
 	default:
