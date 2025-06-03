@@ -785,23 +785,18 @@ func (c *QQClient) handleGroupAdminNotice(wsmsg WebSocketMessage) (bool, error) 
 	group := c.FindGroup(wsmsg.GroupID.ToInt64())
 	member := group.FindMember(wsmsg.UserID.ToInt64())
 	if member != nil {
-		var permission MemberPermission
+		var oldPermission, permission MemberPermission
 		if wsmsg.SubType == "set" {
 			permission = Administrator
 		} else if wsmsg.SubType == "unset" {
 			permission = Member
 		}
-		// 群名片更新入库
-		for _, m := range group.Members {
-			if m.Uin == member.Uin {
-				m.Permission = permission
-				break
-			}
-		}
+		oldPermission = member.Permission
+		member.Permission = permission
 		c.GroupMemberPermissionChangedEvent.dispatch(c, &MemberPermissionChangedEvent{
 			Group:         group,
 			Member:        member,
-			OldPermission: member.Permission,
+			OldPermission: oldPermission,
 			NewPermission: permission,
 		})
 	} else {
@@ -932,13 +927,11 @@ func (c *QQClient) handleGroupCardNotice(wsmsg WebSocketMessage) (bool, error) {
 	var err error
 	member, err := c.GetGroupMemberInfo(wsmsg.GroupID.ToInt64(), wsmsg.UserID.ToInt64())
 	if err == nil && member.Group != nil {
-		// 群成员名片更新
-		for _, m := range member.Group.Members {
-			if m.Uin == member.Uin {
-				m.CardName = member.CardName
-				break
-			}
+		m, err := c.FindMemberByUin(wsmsg.GroupID.ToInt64(), wsmsg.UserID.ToInt64())
+		if err != nil {
+			needSync = true
 		}
+		m.CardName = member.CardName
 		c.MemberCardUpdatedEvent.dispatch(c, &MemberCardUpdatedEvent{
 			Group:   member.Group,
 			OldCard: wsmsg.CardOld,

@@ -123,19 +123,36 @@ func (n *NewNotify) ToMessage() *mmsg.MSG {
 							requests.RetryOption(3),
 							requests.ProxyOption(proxy_pool.PreferOversea)))
 				case "video(m3u8)":
+					var fullURL *url.URL
+					var err error
 					if n.Tweet.MirrorHost == XVideoHost {
 						idx := findNthIndex(unescape, '/', 3)
 						if idx != -1 {
 							unescape = unescape[idx+1:]
 						}
+					} else if strings.Contains(unescape, "https%3A%2F%2Fvideo.twimg.com") {
+						idx := strings.Index(unescape, "https%3A%2F%2F")
+						unescape, err = processMediaURL(unescape[idx:])
+						if err != nil {
+							logger.WithField("stack", string(debug.Stack())).
+								WithField("tweetId", n.Tweet.ID).
+								Errorf("concern notify recoverd: %v", err)
+							continue
+						}
+						idx = findNthIndex(unescape, '?', 1)
+						if idx != -1 {
+							unescape = unescape[:idx]
+						}
+						m.Url = unescape
+					} else {
+						fullURL, err = Url.Parse(unescape)
+						if err != nil {
+							logger.WithField("stack", string(debug.Stack())).
+								WithField("tweetId", n.Tweet.ID).
+								Errorf("concern notify recoverd %v", err)
+						}
+						m.Url = fullURL.String()
 					}
-					fullURL, err := Url.Parse(unescape)
-					if err != nil {
-						logger.WithField("stack", string(debug.Stack())).
-							WithField("tweetId", n.Tweet.ID).
-							Errorf("concern notify recoverd %v", err)
-					}
-					m.Url = fullURL.String()
 					var proxyStr string
 					proxy, err := proxy_pool.Get(proxy_pool.PreferOversea)
 					if err != nil {
@@ -161,9 +178,9 @@ func (n *NewNotify) ToMessage() *mmsg.MSG {
 					}
 					message.Text(n.Tweet.Url + "\n")
 					message.Cut()
-					message.Append(mmsg.NewVideo(filePath))
+					message.Append(mmsg.NewVideoByLocal(filePath))
 					go func(path string) {
-						time.Sleep(time.Second * 180)
+						time.Sleep(time.Second * 128)
 						os.Remove(path)
 					}(filePath)
 				}

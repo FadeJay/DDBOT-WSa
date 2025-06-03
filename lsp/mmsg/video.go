@@ -5,6 +5,7 @@ import (
 	"github.com/Mrs4s/MiraiGo/message"
 	"github.com/cnxysoft/DDBOT-WSa/requests"
 	"github.com/cnxysoft/DDBOT-WSa/utils"
+	"os"
 	"strings"
 )
 
@@ -21,6 +22,17 @@ func NewVideo(url string, Buf ...any) *VideoElement {
 	}
 	if len(Buf) > 0 {
 		v.Buf = Buf[0].([]byte)
+	}
+	return v
+}
+
+func NewVideoByLocal(path string) *VideoElement {
+	v := &VideoElement{}
+	b, err := os.ReadFile(path)
+	if err == nil {
+		v.Buf = b
+	} else {
+		logger.WithField("filepath", path).Errorf("ReadFile error %v", err)
 	}
 	return v
 }
