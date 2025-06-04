@@ -79,6 +79,7 @@ func builtins() FuncMap {
 		"remoteDownloadFile": remoteDownloadFile,
 		"getMsg":             getMsg,
 		"getFileUrl":         getFileUrl,
+		"reCall":             reCall,
 
 		// DDBOT common
 		"hour":          hour,

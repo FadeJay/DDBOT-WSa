@@ -1049,3 +1049,32 @@ func getEleType(v interface{}) string {
 		return "unknown"
 	}
 }
+
+func reCall(msg interface{}) bool {
+	if msg == nil {
+		logger.Warn("未提供需要撤回的消息")
+		return false
+	}
+	bot := localutils.GetBot()
+	if bot == nil {
+		logger.Error("bot 实例未找到")
+		return false
+	}
+	var msgId int32
+	switch e := msg.(type) {
+	case *message.GroupMessage:
+
+		msgId = e.Id
+	case *message.PrivateMessage:
+
+		msgId = e.Id
+	default:
+		panic(fmt.Sprintf("需要撤回的消息类型无法解析: %v", msg))
+	}
+	err := (*bot.Bot).QQClient.RecallMsg(msgId)
+	if err != nil {
+		logger.Errorf("撤回消息失败: %v", err)
+		return false
+	}
+	return true
+}

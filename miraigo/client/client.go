@@ -1189,6 +1189,14 @@ func (c *QQClient) GetMsg(msgId int32) (interface{}, error) {
 	}
 }
 
+func (c *QQClient) RecallMsg(msgId int32) error {
+	_, err := c.SendApi("delete_msg", map[string]any{"message_id": msgId})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (c *QQClient) GetFileUrl(groupCode int64, fileId string) string {
 	data, err := c.SendApi("get_group_file_url", map[string]any{
 		"group_id": groupCode,
@@ -2080,7 +2088,7 @@ func (c *QQClient) RefreshList() {
 		if memberCount > 0 {
 			logger.Infof("已加载 %d 个群成员", memberCount)
 		} else {
-			logger.Info("群成员加载失败")
+			logger.Error("群成员加载失败")
 		}
 	}
 }
