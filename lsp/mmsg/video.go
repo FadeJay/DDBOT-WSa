@@ -40,9 +40,9 @@ func NewVideoByLocal(path string) *VideoElement {
 func NewVideoByUrl(url string, opts ...requests.Option) *VideoElement {
 	var v = NewVideo("")
 	// 使用LRU缓存
-	//b, hd, err := utils.FileGet(url, opts...)
+	b, hd, err := utils.FileGet(url, opts...)
 	// 不使用LRU缓存
-	b, hd, err := utils.FileGetWithoutCache(url, opts...)
+	//b, hd, err := utils.FileGetWithoutCache(url, opts...)
 	if err == nil && hd != nil {
 		v.Buf = b
 	} else {
