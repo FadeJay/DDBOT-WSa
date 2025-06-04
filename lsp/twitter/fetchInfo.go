@@ -175,7 +175,7 @@ func ParseResp(htmlContent []byte, Url string) (*UserProfile, []Tweet, error) {
 		})
 
 		// 解析GIF
-		item.Find(".gallery-gif video").Each(func(i int, img *goquery.Selection) {
+		item.Find(".gallery-gif source").Each(func(i int, img *goquery.Selection) {
 			if src := img.AttrOr("src", ""); src != "" {
 				tweet.Media = append(tweet.Media, &Media{
 					Type: "gif",
@@ -185,7 +185,7 @@ func ParseResp(htmlContent []byte, Url string) (*UserProfile, []Tweet, error) {
 		})
 
 		// 解析视频
-		item.Find(".gallery-video video").Each(func(i int, img *goquery.Selection) {
+		item.Find(".gallery-video source").Each(func(i int, img *goquery.Selection) {
 			if src := img.AttrOr("src", ""); src != "" {
 				tweet.Media = append(tweet.Media, &Media{
 					Type: "video",
