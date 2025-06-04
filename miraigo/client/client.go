@@ -575,24 +575,34 @@ type MessageContent struct {
 	Data message.IMessageElement `json:"data"`
 }
 
+type BotVer struct {
+	AppName         string `json:"app_name"`
+	ProtocolVersion string `json:"protocol_version"`
+	AppVersion      string `json:"app_version"`
+	NtProtocol      string `json:"nt_protocol"`
+}
+
+type Status struct {
+	Online bool        `json:"online"`
+	Good   bool        `json:"good"`
+	Stat   interface{} `json:"stat"`
+}
+
 type WebSocketMessage struct {
 	PostType      string       `json:"post_type"`
 	MetaEventType string       `json:"meta_event_type"`
 	NoticeType    string       `json:"notice_type"`
 	OperatorId    DynamicInt64 `json:"operator_id"`
-	Status        struct {
-		Online bool `json:"online"`
-		Good   bool `json:"good"`
-	} `json:"status"`
-	RequestType string       `json:"request_type"`
-	Comment     string       `json:"comment"`
-	Flag        string       `json:"flag"`
-	Interval    int          `json:"interval"`
-	MessageType string       `json:"message_type"`
-	Time        DynamicInt64 `json:"time"`
-	SelfID      DynamicInt64 `json:"self_id"`
-	SubType     string       `json:"sub_type"`
-	Sender      struct {
+	Status        Status       `json:"status"`
+	RequestType   string       `json:"request_type"`
+	Comment       string       `json:"comment"`
+	Flag          string       `json:"flag"`
+	Interval      int          `json:"interval"`
+	MessageType   string       `json:"message_type"`
+	Time          DynamicInt64 `json:"time"`
+	SelfID        DynamicInt64 `json:"self_id"`
+	SubType       string       `json:"sub_type"`
+	Sender        struct {
 		Age      int          `json:"age"`
 		Card     string       `json:"card"`
 		Nickname string       `json:"nickname"`
@@ -1118,10 +1128,16 @@ func (c *QQClient) handleRequestEvent(wsmsg WebSocketMessage) {
 
 func (c *QQClient) handleMetaEvent(wsmsg WebSocketMessage) {
 	switch wsmsg.MetaEventType {
-	case "lifecycle", "heartbeat":
+	case "lifecycle":
+		ver := c.getBotVer()
+		logger.Infof("BOT实现：%v，版本：%v，协议版本：%v", ver.AppName, ver.AppVersion, ver.ProtocolVersion)
 		if wsmsg.MetaEventType == "lifecycle" {
 			c.Uin = int64(wsmsg.SelfID)
 		}
+		stat := c.getStatus()
+		c.Online.Store(stat.Online)
+		c.alive = stat.Good
+	case "heartbeat":
 		c.Online.Store(wsmsg.Status.Online)
 		c.alive = wsmsg.Status.Good
 		if !wsmsg.Status.Online {
@@ -1130,6 +1146,40 @@ func (c *QQClient) handleMetaEvent(wsmsg WebSocketMessage) {
 	default:
 		logger.Warnf("未知 元事件 类型: %s", wsmsg.MetaEventType)
 	}
+}
+
+func (c *QQClient) getBotVer() BotVer {
+	var resp BotVer
+	data, err := c.SendApi("get_version_info", nil)
+	if err != nil {
+		logger.Warnf("获取BOT实现版本失败: %v", err)
+	}
+	t, err := json.Marshal(data)
+	if err != nil {
+		logger.Warnf("解析BOT实现版本失败: %v", err)
+	}
+	err = json.Unmarshal(t, &resp)
+	if err != nil {
+		logger.Warnf("解析BOT实现版本失败: %v", err)
+	}
+	return resp
+}
+
+func (c *QQClient) getStatus() Status {
+	var stat Status
+	resp, err := c.SendApi("get_status", nil)
+	if err != nil {
+		logger.Warnf("获取BOT状态失败: %v", err)
+	}
+	t, err := json.Marshal(resp)
+	if err != nil {
+		logger.Warnf("解析BOT状态信息失败: %v", err)
+	}
+	err = json.Unmarshal(t, &stat)
+	if err != nil {
+		logger.Warnf("解析BOT状态信息失败: %v", err)
+	}
+	return stat
 }
 
 func (c *QQClient) handleGroupEssence(wsmsg WebSocketMessage) (bool, error) {
