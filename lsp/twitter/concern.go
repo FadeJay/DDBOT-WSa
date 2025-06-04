@@ -495,17 +495,17 @@ func (t *twitterConcern) GetTweets(id string) ([]Tweet, error) {
 	// 解压缩HTML
 	body, err := HtmlDecoder(respHeaders, resp)
 	if err != nil {
-		logger.WithField("Url", Url).WithField("userId", id).Errorf("解压缩HTML失败：%v", err)
+		logger.WithField("userId", id).Errorf("解压缩HTML失败：%v", err)
 		return nil, err
 	}
 
 	// 解析解压后的数据
 	_, tweets, err := ParseResp(body, Url)
 	if err != nil {
-		logger.WithField("Url", Url).WithField("userId", id).Errorf("解析HTML失败：%v", err)
+		logger.WithField("userId", id).Errorf("解析HTML失败：%v", err)
 		return nil, err
 	} else if tweets == nil {
-		logger.Warn("获取推文列表失败：无法解析数据或推文列表为空")
+		logger.WithField("userId", id).Warn("获取推文列表失败：无法解析数据或推文列表为空")
 		return nil, nil
 	}
 	//var result []*TweetItem

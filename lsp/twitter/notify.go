@@ -110,17 +110,24 @@ func (n *NewNotify) ToMessage() *mmsg.MSG {
 					m.Url = fullURL.String()
 					message.Append(
 						mmsg.NewImageByUrl(m.Url,
-							requests.TimeoutOption(time.Second*10),
-							requests.RetryOption(3),
 							requests.ProxyOption(proxy_pool.PreferOversea)))
 					message.Text(n.Tweet.Url + "\n")
 				case "video", "gif":
+					if strings.Contains(unescape, "video.twimg.com") {
+						idx := strings.Index(unescape, "video.twimg.com")
+						unescape, err = processMediaURL(unescape[idx:])
+						if err != nil {
+							logger.WithField("stack", string(debug.Stack())).
+								WithField("tweetId", n.Tweet.ID).
+								Errorf("concern notify recoverd: %v", err)
+							continue
+						}
+						m.Url = unescape
+					}
 					message.Text(n.Tweet.Url + "\n")
 					message.Cut()
 					message.Append(
 						mmsg.NewVideoByUrl(m.Url,
-							requests.TimeoutOption(time.Second*10),
-							requests.RetryOption(3),
 							requests.ProxyOption(proxy_pool.PreferOversea)))
 				case "video(m3u8)":
 					var fullURL *url.URL
