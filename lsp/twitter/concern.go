@@ -366,7 +366,6 @@ func (t *twitterConcern) freshNewsInfo(ctype concern_type.Type, id interface{}) 
 		}
 		newsInfo.LatestNewsTs = time.Now().UTC()
 		if len(newTweets) > 0 && newTweets[0].ID != "" {
-			//newsInfo.LatestNewsTs = t.GetLatestNewsTs(newTweets)
 			newsInfo.LatestTweetId = newTweets[0].ID
 			if oldNewsInfo == nil || (newsInfo.LatestTweetId != oldNewsInfo.LatestTweetId) {
 				if oldNewsInfo == nil || oldNewsInfo.LatestTweetId == "" {
@@ -377,7 +376,6 @@ func (t *twitterConcern) freshNewsInfo(ctype concern_type.Type, id interface{}) 
 					}
 				}
 				// 获取超过最后推送时间的tweet
-				//NewTweets := t.GetNewTweetsFromTime(oldNewsInfo.LatestNewsTs, newTweets)
 				NewTweets := t.GetNewTweetsFromTweetId(oldNewsInfo, newTweets)
 				if len(NewTweets) > 0 {
 					t.reverseTweets(NewTweets)
@@ -550,8 +548,8 @@ func (t *twitterConcern) GetNewTweetsFromTweetId(oldNewsInfo *NewsInfo, tweets [
 			logger.WithError(err).Errorf("ParseSnowflakeTimestamp error")
 			continue
 		}
-		if tweets[0].CreatedAt.Before(oldTime) {
-			continue
+		if tweets[0].CreatedAt.After(oldTime) {
+			retTweets = append(retTweets, tweet)
 		}
 		if tweets[0].CreatedAt.After(oldNewsInfo.LatestNewsTs) {
 			retTweets = append(retTweets, tweet)
