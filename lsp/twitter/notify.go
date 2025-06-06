@@ -28,17 +28,6 @@ func (n *NewNotify) GetGroupCode() int64 {
 }
 
 func (n *NewNotify) ToMessage() *mmsg.MSG {
-	//t := n.GetTweetContent(n.Tweet.GetId())
-	//if t.XTypename == "TweetTombstone" {
-	//	logger.WithField("TweetId", n.Tweet.GetId()).
-	//		Warnf("tweet to tombstone: %s", t.Tombstone.Text.Text)
-	//	return &mmsg.MSG{}
-	//}
-	//var reTweetNotify *NewNotify
-	//if n.Tweet.Type == RETWEET {
-	//	reTweetNotify = n
-	//}
-	//message := t.GetTweetMessage(reTweetNotify)
 	defer func() {
 		if err := recover(); err != nil {
 			logger.WithField("stack", string(debug.Stack())).
@@ -62,19 +51,11 @@ func (n *NewNotify) ToMessage() *mmsg.MSG {
 		message.Textf(fmt.Sprintf("X-%s发布了新推文：\n", n.Name))
 	}
 	message.Text(CSTTime(CreatedAt).In(location).Format(time.DateTime) + "\n")
-	//// 提取URL
-	//urlRegex := regexp.MustCompile(`\s+(https?://\S+)$`)
-	//matches := urlRegex.FindStringSubmatch(t.Text)
-	//// 删除推文中的URL
-	//var extractedURL string
-	//if len(matches) > 1 {
-	//	t.Text = strings.TrimSuffix(t.Text, matches[1])
-	//	extractedURL = matches[1]
-	//}
 	// msg加入推文
 	if n.Tweet.Content != "" {
 		message.Text(n.Tweet.Content + "\n")
 	}
+	var addedUrl bool
 	// msg加入媒体
 	for _, m := range n.Tweet.Media {
 		unescape := m.Url
@@ -111,7 +92,6 @@ func (n *NewNotify) ToMessage() *mmsg.MSG {
 					message.Append(
 						mmsg.NewImageByUrl(m.Url,
 							requests.ProxyOption(proxy_pool.PreferOversea)))
-					message.Text(n.Tweet.Url + "\n")
 				case "video", "gif":
 					if strings.Contains(unescape, "video.twimg.com") {
 						idx := strings.Index(unescape, "video.twimg.com")
@@ -124,7 +104,7 @@ func (n *NewNotify) ToMessage() *mmsg.MSG {
 						}
 						m.Url = unescape
 					}
-					message.Text(n.Tweet.Url + "\n")
+					addTweetUrl(message, n.Tweet.Url, &addedUrl)
 					message.Cut()
 					message.Append(
 						mmsg.NewVideoByUrl(m.Url,
@@ -183,7 +163,7 @@ func (n *NewNotify) ToMessage() *mmsg.MSG {
 							Errorf("concern notify recoverd: convertWithProxy failed: %v", err)
 						continue
 					}
-					message.Text(n.Tweet.Url + "\n")
+					addTweetUrl(message, n.Tweet.Url, &addedUrl)
 					message.Cut()
 					message.Append(mmsg.NewVideoByLocal(filePath))
 					go func(path string) {
@@ -194,7 +174,15 @@ func (n *NewNotify) ToMessage() *mmsg.MSG {
 			}
 		}
 	}
+	addTweetUrl(message, n.Tweet.Url, &addedUrl)
 	return message
+}
+
+func addTweetUrl(msg *mmsg.MSG, url string, added *bool) {
+	if !*added {
+		*added = true
+		msg.Text(url + "\n")
+	}
 }
 
 func convertWithProxy(m3u8URL, outputPath, proxyURL string) error {
