@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 
 	"github.com/google/uuid"
@@ -108,6 +109,15 @@ func builtins() FuncMap {
 		"loop":          loop,
 		"lsDir":         lsDir,
 		"getEleType":    getEleType,
+		"sleep": func(s string) bool {
+			t, e := time.ParseDuration(s)
+			if e != nil {
+				logger.WithField("sleep", e).Error("无效的时间格式")
+				return false
+			}
+			time.Sleep(t)
+			return true
+		},
 
 		// cast
 		"float64": toFloat64,
