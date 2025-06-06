@@ -1644,7 +1644,7 @@ func parseFileElement(contentMap map[string]interface{}, elements *[]message.IMe
 	file, ok := contentMap["data"].(map[string]interface{})
 	if ok {
 		var fileSize int64 = 0
-		fileName := ""
+		var fileName, url string
 		if file["file"] != nil {
 			fileName = file["file"].(string)
 		} else if file["file_name"] != nil {
@@ -1658,23 +1658,22 @@ func parseFileElement(contentMap map[string]interface{}, elements *[]message.IMe
 				fileSize = file["file_size"].(int64)
 			}
 		}
+		if file["url"] != nil {
+			url = file["url"].(string)
+		}
 		if isGroupMsg {
 			*elements = append(*elements, &message.GroupFileElement{
 				Name: fileName,
 				Size: fileSize,
 				Id:   file["file_id"].(string),
-				Url:  file["url"].(string),
+				Url:  url,
 			})
 		} else {
-			fileUrl := ""
-			if file["url"] != nil {
-				fileUrl = file["url"].(string)
-			}
 			*elements = append(*elements, &message.FriendFileElement{
 				Name: fileName,
 				Size: fileSize,
 				Id:   file["file_id"].(string),
-				Url:  fileUrl,
+				Url:  url,
 			})
 		}
 	}
