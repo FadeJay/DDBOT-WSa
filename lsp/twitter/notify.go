@@ -42,8 +42,8 @@ func (n *NewNotify) ToMessage() *mmsg.MSG {
 	}
 	location, _ := time.LoadLocation("Asia/Shanghai")
 	var CreatedAt time.Time
-	if n.Tweet.IsRetweet {
-		CreatedAt = n.LatestNewsTs
+	if n.Tweet.RtType() == RETWEET {
+		CreatedAt = time.Now().UTC()
 		message.Textf(fmt.Sprintf("X-%s转发了%s的推文：\n",
 			n.Name, n.Tweet.OrgUser.Name))
 	} else {
@@ -183,7 +183,7 @@ func (n *NewNotify) ToMessage() *mmsg.MSG {
 		location, _ := time.LoadLocation("Asia/Shanghai")
 		var CreatedAt time.Time
 		CreatedAt = QuoteTweet.CreatedAt
-		message.Textf(fmt.Sprintf("\n引用了%v的推文：\n", QuoteTweet.OrgUser.Name))
+		message.Textf(fmt.Sprintf("\n%v引用了%v的推文：\n", n.Tweet.OrgUser.Name, QuoteTweet.OrgUser.Name))
 		message.Text(CSTTime(CreatedAt).In(location).Format(time.DateTime) + "\n")
 		// msg加入推文
 		if QuoteTweet.Content != "" {

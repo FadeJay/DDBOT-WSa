@@ -58,7 +58,15 @@ func (t *Tweet) RtType() int {
 	}
 }
 
-func ParseResp(htmlContent []byte, Url string) (*UserProfile, []Tweet, error) {
+func GetIdList(tweets []*Tweet) []string {
+	var idList []string
+	for t := range tweets {
+		idList = append(idList, tweets[t].ID)
+	}
+	return idList
+}
+
+func ParseResp(htmlContent []byte, Url string) (*UserProfile, []*Tweet, error) {
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(htmlContent))
 	if err != nil {
 		return nil, nil, err
@@ -130,7 +138,7 @@ func ParseResp(htmlContent []byte, Url string) (*UserProfile, []Tweet, error) {
 	})
 
 	// 解析推文列表
-	var tweets []Tweet
+	var tweets []*Tweet
 	doc.Find(".timeline-item").Each(func(i int, item *goquery.Selection) {
 		tweet := Tweet{
 			MirrorHost: parsedURL.Hostname(),
@@ -301,7 +309,7 @@ func ParseResp(htmlContent []byte, Url string) (*UserProfile, []Tweet, error) {
 			})
 			tweet.QuoteTweet = QuoteTweet
 		})
-		tweets = append(tweets, tweet)
+		tweets = append(tweets, &tweet)
 	})
 	return &profile, tweets, nil
 }

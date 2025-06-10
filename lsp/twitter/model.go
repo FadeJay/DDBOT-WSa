@@ -13,8 +13,7 @@ import (
 
 type NewsInfo struct {
 	*UserInfo
-	Tweet         Tweet
-	LatestNewsTs  time.Time
+	Tweet         *Tweet
 	LatestTweetId string
 }
 
@@ -49,9 +48,8 @@ func (e *NewsInfo) GetLatestTweetTs() time.Time {
 }
 
 type UserInfo struct {
-	Id              string
-	Name            string
-	ProfileImageUrl string
+	Id   string
+	Name string
 }
 
 func (u *UserInfo) GetUid() interface{} {

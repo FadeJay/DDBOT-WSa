@@ -7,8 +7,8 @@ import "github.com/cnxysoft/DDBOT-WSa/lsp/buntdb"
 
 type extraKey struct{}
 
-func (e *extraKey) FreshKey(keys ...interface{}) string {
-	return buntdb.TwitterFreshKey(keys...)
+func (e *extraKey) TweetListKey(keys ...interface{}) string {
+	return buntdb.TwitterTweetListKey(keys...)
 }
 func (e *extraKey) UserInfoKey(keys ...interface{}) string {
 	return buntdb.TwitterUserInfoKey(keys...)

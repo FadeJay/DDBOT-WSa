@@ -167,7 +167,7 @@ func WeiboMarkMblogIdKey(keys ...interface{}) string {
 func TwitterUserInfoKey(keys ...interface{}) string {
 	return NamedKey("TwitterUserInfo", keys)
 }
-func TwitterFreshKey(keys ...interface{}) string { return NamedKey("TwitterFresh", keys) }
+func TwitterTweetListKey(keys ...interface{}) string { return NamedKey("TwitterTweetList", keys) }
 func TwitterNewsInfoKey(keys ...interface{}) string {
 	return NamedKey("TwitterNewsInfo", keys)
 }
