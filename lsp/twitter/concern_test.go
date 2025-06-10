@@ -218,6 +218,59 @@ Link: <a href="https://youtu.be/1ndym-VP9dA">youtu.be/1ndym-VP9dA</a>
             </div>
           </div>
 <div class="timeline-item ">
+              <a class="tweet-link" href="/pandarion_v3/status/1931877486037782753#m"></a>
+              <div class="tweet-body">
+                <div>
+                  <div class="retweet-header"><span><div class="icon-container"><span class="icon-retweet" title=""></span> Alen retweeted</div></span></div>
+                  <div class="tweet-header">
+                    <a class="tweet-avatar" href="/pandarion_v3"><img class="avatar round" src="/pic/profile_images%2F1834780570410532864%2FFsaVJy6C_bigger.jpg" alt="" loading="lazy"></a>
+                    <div class="tweet-name-row">
+                      <div class="fullname-and-username">
+                        <a class="fullname" href="/pandarion_v3" title="古老のパンダ">古老のパンダ</a>
+                        <a class="username" href="/pandarion_v3" title="@pandarion_v3">@pandarion_v3</a>
+                      </div>
+                      <span class="tweet-date"><a href="/pandarion_v3/status/1931877486037782753#m" title="Jun 9, 2025 · 12:54 AM UTC">Jun 9</a></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="tweet-content media-body" dir="auto">ポストする直前で寝落ちしてしまった…🤤
+
+スクチラから始まって
+これで〆🫡
+
+<a href="https://nitter.net/i/grok/share/lbXvEhkNemrYoyb2hR6QVgH1A">nitter.net/i/grok/share/lbXvEhkNe…</a>
+
+<a href="/search?q=%23AIイラスト">#AIイラスト</a></div>
+                <div class="attachments"><div class="gallery-row" style=""><div class="attachment image"><a class="still-image" href="/pic/orig/media%2FGs9oVdNakAAgElN.jpg" target="_blank"><img src="/pic/media%2FGs9oVdNakAAgElN.jpg%3Fname%3Dsmall%26format%3Dwebp" alt="" loading="lazy"></a></div></div></div>
+                <div class="quote quote-big">
+                  <a class="quote-link" href="/pandarion_v3/status/1931525405007397208#m"></a>
+                  <div class="tweet-name-row">
+                    <div class="fullname-and-username">
+                      <img class="avatar round mini" src="/pic/profile_images%2F1834780570410532864%2FFsaVJy6C_mini.jpg" alt="" loading="lazy">
+                      <a class="fullname" href="/pandarion_v3" title="古老のパンダ">古老のパンダ</a>
+                      <a class="username" href="/pandarion_v3" title="@pandarion_v3">@pandarion_v3</a>
+                    </div>
+                    <span class="tweet-date"><a href="/pandarion_v3/status/1931525405007397208#m" title="Jun 8, 2025 · 1:35 AM UTC">Jun 8</a></span>
+                  </div>
+                  <div class="quote-text" dir="auto">トラブルもありましたが
+お約束まで持っていけました🤤
+
+<a href="https://nitter.net/i/grok/share/KgVwuWDyV3Prtxz0h9aM25ec8">nitter.net/i/grok/share/KgVwuWDyV…</a>
+
+真面目なgrokくんに好感☺️
+
+<a href="/search?q=%23AIイラスト">#AIイラスト</a></div>
+                  <div class="quote-media-container"><div class="attachments"><div class="gallery-row" style=""><div class="attachment image"><a class="still-image" href="/pic/orig/media%2FGs4oHpAbkAAbH1Z.jpg" target="_blank"><img src="/pic/media%2FGs4oHpAbkAAbH1Z.jpg%3Fname%3Dsmall%26format%3Dwebp" alt="" loading="lazy"></a></div></div></div></div>
+                </div>
+                <div class="tweet-stats">
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-comment" title=""></span> 9</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-retweet" title=""></span> 89</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-quote" title=""></span> 2</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-heart" title=""></span> 1,401</div></span>
+                </div>
+              </div>
+            </div>
+<div class="timeline-item ">
               <a class="tweet-link" href="/peace_maki02/status/1920766476270678132#m"></a>
               <div class="tweet-body">
                 <div>
@@ -304,7 +357,7 @@ TVアニメは7月6日(日)放送開始です！
 
 	assert.NoError(t, err)
 	assert.NotNil(t, tweets)
-	assert.Len(t, tweets, 4, "应解析出4条推文")
+	assert.Len(t, tweets, 5, "应解析出5条推文")
 
 	// 验证推文内容
 	tweet := tweets[0]

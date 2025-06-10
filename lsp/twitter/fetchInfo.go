@@ -42,6 +42,7 @@ type Tweet struct {
 	OrgUser    *UserProfile `json:"org_user"`
 	Url        string       `json:"url"`
 	MirrorHost string       `json:"mirror_url"`
+	QuoteTweet *Tweet       `json:"quote_tweet"`
 }
 
 type Media struct {
@@ -165,7 +166,7 @@ func ParseResp(htmlContent []byte, Url string) (*UserProfile, []Tweet, error) {
 		})
 
 		// 解析图片
-		item.Find("div[class='attachment image'] img").Each(func(i int, img *goquery.Selection) {
+		item.Find(".tweet-body > .attachments div[class='attachment image'] img").Each(func(i int, img *goquery.Selection) {
 			if src := img.AttrOr("src", ""); src != "" {
 				tweet.Media = append(tweet.Media, &Media{
 					Type: "image",
@@ -175,8 +176,8 @@ func ParseResp(htmlContent []byte, Url string) (*UserProfile, []Tweet, error) {
 		})
 
 		// 解析GIF
-		item.Find(".gallery-gif source").Each(func(i int, img *goquery.Selection) {
-			if src := img.AttrOr("src", ""); src != "" {
+		item.Find(".tweet-body > .attachments .gallery-gif source").Each(func(i int, gif *goquery.Selection) {
+			if src := gif.AttrOr("src", ""); src != "" {
 				tweet.Media = append(tweet.Media, &Media{
 					Type: "gif",
 					Url:  src,
@@ -185,8 +186,8 @@ func ParseResp(htmlContent []byte, Url string) (*UserProfile, []Tweet, error) {
 		})
 
 		// 解析视频
-		item.Find(".gallery-video source").Each(func(i int, img *goquery.Selection) {
-			if src := img.AttrOr("src", ""); src != "" {
+		item.Find(".tweet-body > .attachments .gallery-video source").Each(func(i int, video *goquery.Selection) {
+			if src := video.AttrOr("src", ""); src != "" {
 				tweet.Media = append(tweet.Media, &Media{
 					Type: "video",
 					Url:  src,
@@ -195,8 +196,8 @@ func ParseResp(htmlContent []byte, Url string) (*UserProfile, []Tweet, error) {
 		})
 
 		// 解析视频(m3u8)
-		item.Find(".gallery-video video").Each(func(i int, img *goquery.Selection) {
-			if dataUrl := img.AttrOr("data-url", ""); dataUrl != "" {
+		item.Find(".tweet-body > .attachments .gallery-video video").Each(func(i int, video *goquery.Selection) {
+			if dataUrl := video.AttrOr("data-url", ""); dataUrl != "" {
 				tweet.Media = append(tweet.Media, &Media{
 					Type: "video(m3u8)",
 					Url:  dataUrl,
@@ -227,6 +228,79 @@ func ParseResp(htmlContent []byte, Url string) (*UserProfile, []Tweet, error) {
 			// 添加URL
 			tweet.Url = XUrl + "/" + profile.ScreenName + "/status/" + tweet.ID
 		}
+
+		// 解析引用推文
+		item.Find(".quote-big").Each(func(i int, s *goquery.Selection) {
+			QuoteTweet := &Tweet{
+				MirrorHost: parsedURL.Hostname(),
+			}
+			// 解析推文ID
+			QuoteTweet.ID = ExtractTweetID(item.Find(".quote-link").AttrOr("href", ""))
+			// 解析时间
+			timeStr := s.Find(".tweet-date a").AttrOr("title", "")
+			// 原格式：Mon Jan 2 15:04:05 -0700 MST 2006 的变体
+			if parsedTime, err := time.Parse("Jan 2, 2006 · 3:04 PM MST", timeStr); err == nil {
+				QuoteTweet.CreatedAt = parsedTime
+			}
+
+			// 解析用户基本信息
+			var QuoteUser UserProfile
+			s.Find(".fullname-and-username a").Each(func(i int, s *goquery.Selection) {
+				if i == 0 {
+					QuoteUser.Name = strings.TrimSpace(s.Text())
+				} else {
+					QuoteUser.ScreenName = strings.Trim(s.Text(), "@)")
+					QuoteUser.Website = XUrl + "/" +
+						strings.Trim(item.Find(".timeline-item .username").
+							AttrOr("title", ""), "@")
+				}
+			})
+			// 添加原推主
+			QuoteTweet.OrgUser = &QuoteUser
+			// 解析内容
+			QuoteTweet.Content = strings.TrimSpace(s.Find(".quote-text").Text())
+
+			// 解析图片
+			s.Find("div[class='attachment image'] img").Each(func(i int, img *goquery.Selection) {
+				if src := img.AttrOr("src", ""); src != "" {
+					QuoteTweet.Media = append(QuoteTweet.Media, &Media{
+						Type: "image",
+						Url:  src,
+					})
+				}
+			})
+
+			// 解析GIF
+			s.Find(".gallery-gif source").Each(func(i int, gif *goquery.Selection) {
+				if src := gif.AttrOr("src", ""); src != "" {
+					QuoteTweet.Media = append(QuoteTweet.Media, &Media{
+						Type: "gif",
+						Url:  src,
+					})
+				}
+			})
+
+			// 解析视频
+			s.Find(".gallery-video source").Each(func(i int, video *goquery.Selection) {
+				if src := video.AttrOr("src", ""); src != "" {
+					QuoteTweet.Media = append(QuoteTweet.Media, &Media{
+						Type: "video",
+						Url:  src,
+					})
+				}
+			})
+
+			// 解析视频(m3u8)
+			s.Find(".gallery-video video").Each(func(i int, video *goquery.Selection) {
+				if dataUrl := video.AttrOr("data-url", ""); dataUrl != "" {
+					QuoteTweet.Media = append(QuoteTweet.Media, &Media{
+						Type: "video(m3u8)",
+						Url:  dataUrl,
+					})
+				}
+			})
+			tweet.QuoteTweet = QuoteTweet
+		})
 		tweets = append(tweets, tweet)
 	})
 	return &profile, tweets, nil

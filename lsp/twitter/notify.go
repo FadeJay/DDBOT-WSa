@@ -53,14 +53,18 @@ func (n *NewNotify) ToMessage() *mmsg.MSG {
 	message.Text(CSTTime(CreatedAt).In(location).Format(time.DateTime) + "\n")
 	// msg加入推文
 	if n.Tweet.Content != "" {
-		message.Text(n.Tweet.Content + "\n")
+		content := n.Tweet.Content
+		if n.Tweet.Media != nil {
+			content += "\n"
+		}
+		message.Text(content)
 	}
 	var addedUrl bool
 	// msg加入媒体
 	for _, m := range n.Tweet.Media {
 		unescape := m.Url
 		if strings.HasPrefix(unescape, "/") {
-			Url, err := setMirrorHost(*n, *m)
+			Url, err := setMirrorHost(n.Tweet.MirrorHost, *m)
 			if err != nil {
 				logger.WithField("stack", string(debug.Stack())).
 					WithField("tweetId", n.Tweet.ID).
@@ -174,6 +178,134 @@ func (n *NewNotify) ToMessage() *mmsg.MSG {
 			}
 		}
 	}
+	// msg加入被引用推文
+	if QuoteTweet := n.Tweet.QuoteTweet; QuoteTweet != nil {
+		location, _ := time.LoadLocation("Asia/Shanghai")
+		var CreatedAt time.Time
+		CreatedAt = QuoteTweet.CreatedAt
+		message.Textf(fmt.Sprintf("\n引用了%v的推文：\n", QuoteTweet.OrgUser.Name))
+		message.Text(CSTTime(CreatedAt).In(location).Format(time.DateTime) + "\n")
+		// msg加入推文
+		if QuoteTweet.Content != "" {
+			message.Text(QuoteTweet.Content + "\n")
+		}
+		// msg加入媒体
+		for _, m := range QuoteTweet.Media {
+			unescape := m.Url
+			if strings.HasPrefix(unescape, "/") {
+				Url, err := setMirrorHost(QuoteTweet.MirrorHost, *m)
+				if err != nil {
+					logger.WithField("stack", string(debug.Stack())).
+						WithField("tweetId", QuoteTweet.ID).
+						Errorf("concern notify recoverd %v", err)
+					continue
+				}
+				if Url.Hostname() != "" {
+					if Url.Hostname() == XImgHost || Url.Hostname() == XVideoHost {
+						unescape, err = processMediaURL(m.Url)
+						if err != nil {
+							logger.WithField("stack", string(debug.Stack())).
+								WithField("tweetId", QuoteTweet.ID).
+								Errorf("concern notify recoverd: %v", err)
+							continue
+						}
+					}
+					switch m.Type {
+					case "image":
+						if QuoteTweet.MirrorHost == XImgHost {
+							unescape = strings.TrimLeft(unescape, "/pic/")
+						}
+						fullURL, err := Url.Parse(unescape)
+						if err != nil {
+							logger.WithField("stack", string(debug.Stack())).
+								WithField("tweetId", QuoteTweet.ID).
+								Errorf("concern notify recoverd %v", err)
+						}
+						m.Url = fullURL.String()
+						message.Append(
+							mmsg.NewImageByUrl(m.Url,
+								requests.ProxyOption(proxy_pool.PreferOversea)))
+					case "video", "gif":
+						if strings.Contains(unescape, "video.twimg.com") {
+							idx := strings.Index(unescape, "video.twimg.com")
+							unescape, err = processMediaURL(unescape[idx:])
+							if err != nil {
+								logger.WithField("stack", string(debug.Stack())).
+									WithField("tweetId", QuoteTweet.ID).
+									Errorf("concern notify recoverd: %v", err)
+								continue
+							}
+							m.Url = unescape
+						}
+						message.Cut()
+						message.Append(
+							mmsg.NewVideoByUrl(m.Url,
+								requests.ProxyOption(proxy_pool.PreferOversea)))
+					case "video(m3u8)":
+						var fullURL *url.URL
+						var err error
+						if QuoteTweet.MirrorHost == XVideoHost {
+							idx := findNthIndex(unescape, '/', 3)
+							if idx != -1 {
+								unescape = unescape[idx+1:]
+							}
+						} else if strings.Contains(unescape, "https%3A%2F%2Fvideo.twimg.com") {
+							idx := strings.Index(unescape, "https%3A%2F%2F")
+							unescape, err = processMediaURL(unescape[idx:])
+							if err != nil {
+								logger.WithField("stack", string(debug.Stack())).
+									WithField("tweetId", QuoteTweet.ID).
+									Errorf("concern notify recoverd: %v", err)
+								continue
+							}
+							idx = findNthIndex(unescape, '?', 1)
+							if idx != -1 {
+								unescape = unescape[:idx]
+							}
+							m.Url = unescape
+						} else {
+							fullURL, err = Url.Parse(unescape)
+							if err != nil {
+								logger.WithField("stack", string(debug.Stack())).
+									WithField("tweetId", QuoteTweet.ID).
+									Errorf("concern notify recoverd %v", err)
+							}
+							m.Url = fullURL.String()
+						}
+						var proxyStr string
+						proxy, err := proxy_pool.Get(proxy_pool.PreferOversea)
+						if err != nil {
+							logger.WithField("stack", string(debug.Stack())).
+								WithField("tweetId", QuoteTweet.ID).
+								Warnf("concern notify recoverd: proxy setting failed: %v", err)
+						} else {
+							proxyStr = proxy.ProxyString()
+						}
+						if _, err = os.Stat("./res"); os.IsNotExist(err) {
+							if err = os.MkdirAll("./res", 0755); err != nil {
+								logger.Error("创建下载目录失败")
+								continue
+							}
+						}
+						filePath, _ := filepath.Abs("./res/" + uuid.New().String() + ".mp4")
+						err = convertWithProxy(m.Url, filePath, proxyStr)
+						if err != nil {
+							logger.WithField("stack", string(debug.Stack())).
+								WithField("tweetId", QuoteTweet.ID).
+								Errorf("concern notify recoverd: convertWithProxy failed: %v", err)
+							continue
+						}
+						message.Cut()
+						message.Append(mmsg.NewVideoByLocal(filePath))
+						go func(path string) {
+							time.Sleep(time.Second * 128)
+							os.Remove(path)
+						}(filePath)
+					}
+				}
+			}
+		}
+	}
 	addTweetUrl(message, n.Tweet.Url, &addedUrl)
 	return message
 }
@@ -215,20 +347,19 @@ func findNthIndex(s string, sep byte, n int) int {
 	return -1
 }
 
-func setMirrorHost(n NewNotify, m Media) (url.URL, error) {
-	if n.Tweet.MirrorHost == "" || n.Tweet.MirrorHost == XImgHost || n.Tweet.MirrorHost == XVideoHost {
-		logger.WithField("tweetId", n.Tweet.ID).
-			WithField("mediaUrl", m.Url).
+func setMirrorHost(mirrorHost string, m Media) (url.URL, error) {
+	if mirrorHost == "" || mirrorHost == XImgHost || mirrorHost == XVideoHost {
+		logger.WithField("mediaUrl", m.Url).
 			Trace("No MirrorHost was found, using the default Host of X.")
 		if m.Type == "image" {
-			n.Tweet.MirrorHost = XImgHost
+			mirrorHost = XImgHost
 		} else {
-			n.Tweet.MirrorHost = XVideoHost
+			mirrorHost = XVideoHost
 		}
 	}
 	Url := url.URL{
 		Scheme: "https",
-		Host:   n.Tweet.MirrorHost,
+		Host:   mirrorHost,
 	}
 	return Url, nil
 }
