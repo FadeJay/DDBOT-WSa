@@ -268,10 +268,10 @@ func NewConcernLiveNotify(groupCode int64, liveInfo *LiveInfo) *ConcernLiveNotif
 
 func (notify *ConcernNewsNotify) ToMessage() (m *mmsg.MSG) {
 	var (
-		card       = notify.Card
-		log        = notify.Logger()
-		dynamicUrl = DynamicUrl(card.GetDesc().GetDynamicIdStr())
-		date       = localutils.TimestampFormat(card.GetDesc().GetTimestamp())
+		card = notify.Card
+		log  = notify.Logger()
+		//dynamicUrl = DynamicUrl(card.GetDesc().GetDynamicIdStr())
+		//date       = localutils.TimestampFormat(card.GetDesc().GetTimestamp())
 	)
 	// 推送一条简化动态防止刷屏，主要是联合投稿和转发的时候
 	if notify.shouldCompact {
@@ -279,29 +279,30 @@ func (notify *ConcernNewsNotify) ToMessage() (m *mmsg.MSG) {
 		m = mmsg.NewMSG()
 		msg, _ := notify.concern.GetNotifyMsg(notify.GroupCode, notify.compactKey)
 		if msg != nil {
-			m.Append(message.NewReply(msg))
+			card.orgMsg = msg
+			//m.Append(message.NewReply(msg))
 		}
 		log.WithField("compact_key", notify.compactKey).Debug("compact notify")
-		switch notify.Card.GetDesc().GetType() {
-		case DynamicDescType_WithVideo:
-			videoCard, _ := notify.Card.GetCardWithVideo()
-			m.Textf("%v%v：\n%v\n%v\n%v",
-				notify.Name,
-				notify.Card.GetDisplay().GetUsrActionTxt(),
-				date,
-				videoCard.GetTitle(),
-				dynamicUrl)
-			return
-		case DynamicDescType_WithOrigin:
-			origCard, _ := notify.Card.GetCardWithOrig()
-			m.Textf("%v转发了%v的动态：\n%v\n%v\n%v",
-				notify.Name,
-				origCard.GetOriginUser().GetInfo().GetUname(),
-				date,
-				origCard.GetItem().GetContent(),
-				dynamicUrl)
-			return
-		}
+		//switch notify.Card.GetDesc().GetType() {
+		//case DynamicDescType_WithVideo:
+		//	videoCard, _ := notify.Card.GetCardWithVideo()
+		//	m.Textf("%v%v：\n%v\n%v\n%v",
+		//		notify.Name,
+		//		notify.Card.GetDisplay().GetUsrActionTxt(),
+		//		date,
+		//		videoCard.GetTitle(),
+		//		dynamicUrl)
+		//	return
+		//case DynamicDescType_WithOrigin:
+		//	origCard, _ := notify.Card.GetCardWithOrig()
+		//	m.Textf("%v转发了%v的动态：\n%v\n%v\n%v",
+		//		notify.Name,
+		//		origCard.GetOriginUser().GetInfo().GetUname(),
+		//		date,
+		//		origCard.GetItem().GetContent(),
+		//		dynamicUrl)
+		//	return
+		//}
 	}
 	m = notify.Card.GetMSG()
 	return
@@ -439,6 +440,7 @@ type CacheCard struct {
 	once     sync.Once
 	msgCache *mmsg.MSG
 	dynamic  DynamicInfo
+	orgMsg   *message.GroupMessage
 }
 
 func NewCacheCard(card *Card) *CacheCard {
@@ -1329,6 +1331,7 @@ func (c *CacheCard) GetMSG() *mmsg.MSG {
 		c.prepare()
 		var data = map[string]interface{}{
 			"dynamic": c.dynamic,
+			"msg":     c.orgMsg,
 		}
 		var err error
 		c.msgCache, err = template.LoadAndExec("notify.group.bilibili.news.tmpl", data)

@@ -1,6 +1,14 @@
 {{ $msg := "" -}}
 {{ $orgTip := "" -}}
-{{ if eq .dynamic.Type 2 -}}
+{{ if .msg -}}
+    {{ reply .msg -}}
+    {{ if eq .dynamic.Type 8 -}}
+        {{ $msg = join "" (list .dynamic.User.Name "转发了" .dynamic.OriginUser.Name "的视频：") -}}
+    {{ else if eq .dynamic.Type 2 -}}
+        {{ $msg = join "" (list .dynamic.User.Name "转发了" .dynamic.OriginUser.Name "的动态：") -}}
+    {{ end -}}
+    {{ printf "%v\n%v\n%v\n" $msg .dynamic.Date .dynamic.Content -}}
+{{ else if eq .dynamic.Type 2 -}}
     {{ if .dynamic.WithOrigin -}}
         {{ $msg = join "" (list .dynamic.User.Name "转发了" .dynamic.OriginUser.Name "的动态：") -}}
         {{ $orgTip = "\n\n原动态：\n" -}}
