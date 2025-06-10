@@ -48,9 +48,8 @@ func TestTwitterConcern_GetUserInfo(t *testing.T) {
 			screenName:   "testuser",
 			mockResponse: successHTML,
 			expected: &UserInfo{
-				Id:              "testuser",
-				Name:            "Test User",
-				ProfileImageUrl: "https://test.com/avatar.jpg",
+				Id:   "testuser",
+				Name: "Test User",
 			},
 			expectError: false,
 		},
@@ -114,7 +113,6 @@ func TestTwitterConcern_GetUserInfo(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expected.Id, result.Id)
 				assert.Equal(t, tt.expected.Name, result.Name)
-				assert.Contains(t, result.ProfileImageUrl, "avatar.jpg")
 
 				// 验证数据库存储
 				dbInfo, err := tc.GetUserInfo(tt.screenName)

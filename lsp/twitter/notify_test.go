@@ -20,16 +20,15 @@ func TestToMessage_ErrorHandling(t *testing.T) {
 	}
 
 	userInfo := &UserInfo{
-		Id:              "1234567890",
-		Name:            "testuser",
-		ProfileImageUrl: "https://example.com/profile.jpg",
+		Id:   "1234567890",
+		Name: "testuser",
 	}
 
 	notify := &NewNotify{
 		groupCode: 123456,
 		NewsInfo: &NewsInfo{
 			UserInfo: userInfo,
-			Tweet:    tweet,
+			Tweet:    &tweet,
 		},
 	}
 
