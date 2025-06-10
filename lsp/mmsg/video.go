@@ -72,7 +72,9 @@ func (v *VideoElement) PackToElement(target Target) message.IMessageElement {
 		}
 		return m
 	} else if v.Buf == nil {
-		logger.Debugf("TargetPrivate %v nil video buf", target.TargetCode())
+		logger.WithField("Target", target.TargetCode()).
+			WithField("TargetType", target.TargetType()).
+			Debug("PackToElement failed: nil video buf")
 		return nil
 	}
 	logger.Debugf("转换base64视频")
