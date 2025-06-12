@@ -532,7 +532,7 @@ func (t *twitterConcern) GetTweets(id string) ([]*Tweet, error) {
 	var resp bytes.Buffer
 	var respHeaders requests.RespHeader
 	if err := requests.GetWithHeader(Url, nil, &resp, &respHeaders, opts...); err != nil {
-		logger.WithField("Url", Url).WithField("userId", id).Errorf("获取推文列表失败：%v", err)
+		logger.WithField("userId", id).Errorf("获取推文列表失败：%v", err)
 		return nil, err
 	}
 	//data := io.Reader(&resp)

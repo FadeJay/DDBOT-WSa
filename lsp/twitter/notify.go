@@ -61,13 +61,36 @@ func (n *NewNotify) ToMessage() *mmsg.MSG {
 	}
 	var addedUrl bool
 	// msg加入媒体
-	for _, m := range n.Tweet.Media {
+	addMedia(n.Tweet, message, true, &addedUrl)
+	// msg加入被引用推文
+	if QuoteTweet := n.Tweet.QuoteTweet; QuoteTweet != nil {
+		location, _ := time.LoadLocation("Asia/Shanghai")
+		var CreatedAt time.Time
+		quoteTxt := "\n%v引用了%v的推文：\n"
+		CreatedAt = QuoteTweet.CreatedAt
+		// 检查是否需要插入cut
+		addCut(message, &quoteTxt)
+		message.Textf(fmt.Sprintf(quoteTxt, n.Tweet.OrgUser.Name, QuoteTweet.OrgUser.Name))
+		message.Text(CSTTime(CreatedAt).In(location).Format(time.DateTime) + "\n")
+		// msg加入推文
+		if QuoteTweet.Content != "" {
+			message.Text(QuoteTweet.Content + "\n")
+		}
+		// msg加入媒体
+		addMedia(QuoteTweet, message, false, &addedUrl)
+	}
+	addTweetUrl(message, n.Tweet.Url, &addedUrl)
+	return message
+}
+
+func addMedia(tweet *Tweet, message *mmsg.MSG, mainTweet bool, addedUrl *bool) {
+	for _, m := range tweet.Media {
 		unescape := m.Url
 		if strings.HasPrefix(unescape, "/") {
-			Url, err := setMirrorHost(n.Tweet.MirrorHost, *m)
+			Url, err := setMirrorHost(tweet.MirrorHost, *m)
 			if err != nil {
 				logger.WithField("stack", string(debug.Stack())).
-					WithField("tweetId", n.Tweet.ID).
+					WithField("tweetId", tweet.ID).
 					Errorf("concern notify recoverd %v", err)
 				continue
 			}
@@ -76,23 +99,24 @@ func (n *NewNotify) ToMessage() *mmsg.MSG {
 					unescape, err = processMediaURL(m.Url)
 					if err != nil {
 						logger.WithField("stack", string(debug.Stack())).
-							WithField("tweetId", n.Tweet.ID).
+							WithField("tweetId", tweet.ID).
 							Errorf("concern notify recoverd: %v", err)
 						continue
 					}
 				}
 				switch m.Type {
 				case "image":
-					if n.Tweet.MirrorHost == XImgHost {
+					if tweet.MirrorHost == XImgHost {
 						unescape = strings.TrimLeft(unescape, "/pic/")
 					}
 					fullURL, err := Url.Parse(unescape)
 					if err != nil {
 						logger.WithField("stack", string(debug.Stack())).
-							WithField("tweetId", n.Tweet.ID).
+							WithField("tweetId", tweet.ID).
 							Errorf("concern notify recoverd %v", err)
 					}
 					m.Url = fullURL.String()
+					addCut(message, nil)
 					message.Append(
 						mmsg.NewImageByUrl(m.Url,
 							requests.ProxyOption(proxy_pool.PreferOversea)))
@@ -102,13 +126,15 @@ func (n *NewNotify) ToMessage() *mmsg.MSG {
 						unescape, err = processMediaURL(unescape[idx:])
 						if err != nil {
 							logger.WithField("stack", string(debug.Stack())).
-								WithField("tweetId", n.Tweet.ID).
+								WithField("tweetId", tweet.ID).
 								Errorf("concern notify recoverd: %v", err)
 							continue
 						}
 						m.Url = unescape
 					}
-					addTweetUrl(message, n.Tweet.Url, &addedUrl)
+					if mainTweet {
+						addTweetUrl(message, tweet.Url, addedUrl)
+					}
 					message.Cut()
 					message.Append(
 						mmsg.NewVideoByUrl(m.Url,
@@ -116,7 +142,7 @@ func (n *NewNotify) ToMessage() *mmsg.MSG {
 				case "video(m3u8)":
 					var fullURL *url.URL
 					var err error
-					if n.Tweet.MirrorHost == XVideoHost {
+					if tweet.MirrorHost == XVideoHost {
 						idx := findNthIndex(unescape, '/', 3)
 						if idx != -1 {
 							unescape = unescape[idx+1:]
@@ -126,7 +152,7 @@ func (n *NewNotify) ToMessage() *mmsg.MSG {
 						unescape, err = processMediaURL(unescape[idx:])
 						if err != nil {
 							logger.WithField("stack", string(debug.Stack())).
-								WithField("tweetId", n.Tweet.ID).
+								WithField("tweetId", tweet.ID).
 								Errorf("concern notify recoverd: %v", err)
 							continue
 						}
@@ -139,7 +165,7 @@ func (n *NewNotify) ToMessage() *mmsg.MSG {
 						fullURL, err = Url.Parse(unescape)
 						if err != nil {
 							logger.WithField("stack", string(debug.Stack())).
-								WithField("tweetId", n.Tweet.ID).
+								WithField("tweetId", tweet.ID).
 								Errorf("concern notify recoverd %v", err)
 						}
 						m.Url = fullURL.String()
@@ -148,7 +174,7 @@ func (n *NewNotify) ToMessage() *mmsg.MSG {
 					proxy, err := proxy_pool.Get(proxy_pool.PreferOversea)
 					if err != nil {
 						logger.WithField("stack", string(debug.Stack())).
-							WithField("tweetId", n.Tweet.ID).
+							WithField("tweetId", tweet.ID).
 							Warnf("concern notify recoverd: proxy setting failed: %v", err)
 					} else {
 						proxyStr = proxy.ProxyString()
@@ -163,11 +189,13 @@ func (n *NewNotify) ToMessage() *mmsg.MSG {
 					err = convertWithProxy(m.Url, filePath, proxyStr)
 					if err != nil {
 						logger.WithField("stack", string(debug.Stack())).
-							WithField("tweetId", n.Tweet.ID).
+							WithField("tweetId", tweet.ID).
 							Errorf("concern notify recoverd: convertWithProxy failed: %v", err)
 						continue
 					}
-					addTweetUrl(message, n.Tweet.Url, &addedUrl)
+					if mainTweet {
+						addTweetUrl(message, tweet.Url, addedUrl)
+					}
 					message.Cut()
 					message.Append(mmsg.NewVideoByLocal(filePath))
 					go func(path string) {
@@ -178,136 +206,16 @@ func (n *NewNotify) ToMessage() *mmsg.MSG {
 			}
 		}
 	}
-	// msg加入被引用推文
-	if QuoteTweet := n.Tweet.QuoteTweet; QuoteTweet != nil {
-		location, _ := time.LoadLocation("Asia/Shanghai")
-		var CreatedAt time.Time
-		CreatedAt = QuoteTweet.CreatedAt
-		message.Textf(fmt.Sprintf("\n%v引用了%v的推文：\n", n.Tweet.OrgUser.Name, QuoteTweet.OrgUser.Name))
-		message.Text(CSTTime(CreatedAt).In(location).Format(time.DateTime) + "\n")
-		// msg加入推文
-		if QuoteTweet.Content != "" {
-			message.Text(QuoteTweet.Content + "\n")
-		}
-		// msg加入媒体
-		for _, m := range QuoteTweet.Media {
-			unescape := m.Url
-			if strings.HasPrefix(unescape, "/") {
-				Url, err := setMirrorHost(QuoteTweet.MirrorHost, *m)
-				if err != nil {
-					logger.WithField("stack", string(debug.Stack())).
-						WithField("tweetId", QuoteTweet.ID).
-						Errorf("concern notify recoverd %v", err)
-					continue
-				}
-				if Url.Hostname() != "" {
-					if Url.Hostname() == XImgHost || Url.Hostname() == XVideoHost {
-						unescape, err = processMediaURL(m.Url)
-						if err != nil {
-							logger.WithField("stack", string(debug.Stack())).
-								WithField("tweetId", QuoteTweet.ID).
-								Errorf("concern notify recoverd: %v", err)
-							continue
-						}
-					}
-					switch m.Type {
-					case "image":
-						if QuoteTweet.MirrorHost == XImgHost {
-							unescape = strings.TrimLeft(unescape, "/pic/")
-						}
-						fullURL, err := Url.Parse(unescape)
-						if err != nil {
-							logger.WithField("stack", string(debug.Stack())).
-								WithField("tweetId", QuoteTweet.ID).
-								Errorf("concern notify recoverd %v", err)
-						}
-						m.Url = fullURL.String()
-						message.Append(
-							mmsg.NewImageByUrl(m.Url,
-								requests.ProxyOption(proxy_pool.PreferOversea)))
-					case "video", "gif":
-						if strings.Contains(unescape, "video.twimg.com") {
-							idx := strings.Index(unescape, "video.twimg.com")
-							unescape, err = processMediaURL(unescape[idx:])
-							if err != nil {
-								logger.WithField("stack", string(debug.Stack())).
-									WithField("tweetId", QuoteTweet.ID).
-									Errorf("concern notify recoverd: %v", err)
-								continue
-							}
-							m.Url = unescape
-						}
-						message.Cut()
-						message.Append(
-							mmsg.NewVideoByUrl(m.Url,
-								requests.ProxyOption(proxy_pool.PreferOversea)))
-					case "video(m3u8)":
-						var fullURL *url.URL
-						var err error
-						if QuoteTweet.MirrorHost == XVideoHost {
-							idx := findNthIndex(unescape, '/', 3)
-							if idx != -1 {
-								unescape = unescape[idx+1:]
-							}
-						} else if strings.Contains(unescape, "https%3A%2F%2Fvideo.twimg.com") {
-							idx := strings.Index(unescape, "https%3A%2F%2F")
-							unescape, err = processMediaURL(unescape[idx:])
-							if err != nil {
-								logger.WithField("stack", string(debug.Stack())).
-									WithField("tweetId", QuoteTweet.ID).
-									Errorf("concern notify recoverd: %v", err)
-								continue
-							}
-							idx = findNthIndex(unescape, '?', 1)
-							if idx != -1 {
-								unescape = unescape[:idx]
-							}
-							m.Url = unescape
-						} else {
-							fullURL, err = Url.Parse(unescape)
-							if err != nil {
-								logger.WithField("stack", string(debug.Stack())).
-									WithField("tweetId", QuoteTweet.ID).
-									Errorf("concern notify recoverd %v", err)
-							}
-							m.Url = fullURL.String()
-						}
-						var proxyStr string
-						proxy, err := proxy_pool.Get(proxy_pool.PreferOversea)
-						if err != nil {
-							logger.WithField("stack", string(debug.Stack())).
-								WithField("tweetId", QuoteTweet.ID).
-								Warnf("concern notify recoverd: proxy setting failed: %v", err)
-						} else {
-							proxyStr = proxy.ProxyString()
-						}
-						if _, err = os.Stat("./res"); os.IsNotExist(err) {
-							if err = os.MkdirAll("./res", 0755); err != nil {
-								logger.Error("创建下载目录失败")
-								continue
-							}
-						}
-						filePath, _ := filepath.Abs("./res/" + uuid.New().String() + ".mp4")
-						err = convertWithProxy(m.Url, filePath, proxyStr)
-						if err != nil {
-							logger.WithField("stack", string(debug.Stack())).
-								WithField("tweetId", QuoteTweet.ID).
-								Errorf("concern notify recoverd: convertWithProxy failed: %v", err)
-							continue
-						}
-						message.Cut()
-						message.Append(mmsg.NewVideoByLocal(filePath))
-						go func(path string) {
-							time.Sleep(time.Second * 128)
-							os.Remove(path)
-						}(filePath)
-					}
-				}
-			}
+}
+
+func addCut(msg *mmsg.MSG, quo *string) {
+	ele := msg.Elements()
+	if ele[len(ele)-1].Type() == mmsg.Video {
+		msg.Cut()
+		if quo != nil {
+			*quo = strings.TrimPrefix(*quo, "\n")
 		}
 	}
-	addTweetUrl(message, n.Tweet.Url, &addedUrl)
-	return message
 }
 
 func addTweetUrl(msg *mmsg.MSG, url string, added *bool) {
