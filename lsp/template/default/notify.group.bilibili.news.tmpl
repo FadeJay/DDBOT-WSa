@@ -16,7 +16,9 @@
         {{ $msg = join "" (list .dynamic.User.Name "发布了新动态：") -}}
     {{ end -}}
     {{ printf "%v\n%v\n%v%v%v\n" $msg .dynamic.Date .dynamic.Content $orgTip .dynamic.Image.Description -}}
-    {{ if .dynamic.Image.ImageUrls -}}
+    {{ if .dynamic.Image.Bytes -}}
+        {{ pic .dynamic.Image.Bytes -}}
+    {{ else if .dynamic.Image.ImageUrls -}}
         {{ range $v := .dynamic.Image.ImageUrls -}}
             {{ pic $v -}}
         {{ end -}}

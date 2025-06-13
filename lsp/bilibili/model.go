@@ -468,6 +468,7 @@ type DynamicInfo struct {
 	}
 	Image struct {
 		ImageUrls   []string `json:",omitempty"`
+		Bytes       []byte   `json:"-"`
 		Description string   `json:",omitempty"`
 	}
 	Text struct {
@@ -979,12 +980,24 @@ func (c *CacheCard) prepare() {
 				return
 			}
 			c.dynamic.Image.Description = origin.GetItem().GetDescription()
-			if len(origin.GetItem().GetPictures()) > 0 {
+			// 输出urls
+			var urls = make([]string, len(origin.GetItem().GetPictures()))
+			for index, pic := range origin.GetItem().GetPictures() {
+				urls[index] = pic.GetImgSrc()
+			}
+			c.dynamic.Image.ImageUrls = urls
+			// 多图合一
+			if shouldCombineImage(origin.GetItem().GetPictures()) {
 				var urls = make([]string, len(origin.GetItem().GetPictures()))
 				for index, pic := range origin.GetItem().GetPictures() {
 					urls[index] = pic.GetImgSrc()
 				}
-				c.dynamic.Image.ImageUrls = urls
+				resultByte, err := urlsMergeImage(urls)
+				if err != nil {
+					log.Errorf("urlsMergeImage failed %v", err)
+				} else {
+					c.dynamic.Image.Bytes = resultByte
+				}
 			}
 		case DynamicDescType_TextOnly:
 			c.dynamic.Type = DynamicDescType_TextOnly
@@ -1132,12 +1145,24 @@ func (c *CacheCard) prepare() {
 			return
 		}
 		c.dynamic.Image.Description = cardImage.GetItem().GetDescription()
-		if len(cardImage.GetItem().GetPictures()) > 0 {
+		// 输出urls
+		var urls = make([]string, len(cardImage.GetItem().GetPictures()))
+		for index, pic := range cardImage.GetItem().GetPictures() {
+			urls[index] = pic.GetImgSrc()
+		}
+		c.dynamic.Image.ImageUrls = urls
+		// 多图合一
+		if shouldCombineImage(cardImage.GetItem().GetPictures()) {
 			var urls = make([]string, len(cardImage.GetItem().GetPictures()))
 			for index, pic := range cardImage.GetItem().GetPictures() {
 				urls[index] = pic.GetImgSrc()
 			}
-			c.dynamic.Image.ImageUrls = urls
+			resultByte, err := urlsMergeImage(urls)
+			if err != nil {
+				log.Errorf("urlsMergeImage failed %v", err)
+			} else {
+				c.dynamic.Image.Bytes = resultByte
+			}
 		}
 	case DynamicDescType_TextOnly:
 		c.dynamic.Type = DynamicDescType_TextOnly
