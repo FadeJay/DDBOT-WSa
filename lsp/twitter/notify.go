@@ -233,7 +233,7 @@ func convertWithProxy(m3u8URL, outputPath, proxyURL string) error {
 		"-f", "mp4",
 		outputPath)
 	if proxyURL != "" {
-		cmd.Env = append(os.Environ(), "http_proxy="+proxyURL, "https_proxy="+proxyURL)
+		cmd.Env = append(os.Environ(), "http_proxy="+proxyURL, "https_proxy="+proxyURL, "rw_timeout=30000000")
 	}
 
 	cmd.Stdout = nil
