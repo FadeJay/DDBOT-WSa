@@ -375,11 +375,14 @@ func (l *Lsp) Serve(bot *bot.Bot) {
 				return
 			}
 		}
+		var botMode string
 		switch l.LspStateManager.GetCurrentMode() {
 		case PrivateMode:
+			botMode = string(PrivateMode)
 			log.Info("收到好友申请，当前BOT处于私有模式，将拒绝好友申请")
 			request.Reject()
 		case ProtectMode:
+			botMode = string(ProtectMode)
 			if err := l.LspStateManager.SaveNewFriendRequest(request); err != nil {
 				log.Errorf("收到好友申请，但记录申请失败，将拒绝该申请，请将该问题反馈给开发者 - error %v", err)
 				request.Reject()
@@ -387,12 +390,24 @@ func (l *Lsp) Serve(bot *bot.Bot) {
 				log.Info("收到好友申请，当前BOT处于审核模式，将保留好友申请")
 			}
 		case PublicMode:
+			botMode = string(PublicMode)
 			log.Info("收到好友申请，当前BOT处于公开模式，将通过好友申请")
 			request.Accept()
 		default:
+			botMode = "unknown"
 			// impossible
 			log.Errorf("收到好友申请，当前BOT处于未知模式，将拒绝好友申请，请将该问题反馈给开发者")
 			request.Reject()
+		}
+		data := map[string]interface{}{
+			"request_id":  request.RequestId,
+			"member_name": request.RequesterNick,
+			"member_code": request.RequesterUin,
+			"bot_mode":    botMode,
+		}
+		m, _ := template.LoadAndExec("trigger.bot.new_friend_request.tmpl", data)
+		if m != nil {
+			l.SendMsgToAdmin(m)
 		}
 	})
 
@@ -588,11 +603,7 @@ func (l *Lsp) Serve(bot *bot.Bot) {
 			}
 			m, _ := template.LoadAndExec("trigger.group.bot_mute.tmpl", data)
 			if m != nil {
-				if admin := l.PermissionStateManager.ListAdmin(); len(admin) > 0 {
-					l.SendMsg(m, mmsg.NewPrivateTarget(admin[0]))
-				} else {
-					logger.Warn("未设置管理员，取消提示")
-				}
+				l.SendMsgToAdmin(m)
 			}
 		}
 	})
@@ -707,6 +718,14 @@ func (l *Lsp) Serve(bot *bot.Bot) {
 		_, _ = template.LoadAndExec(templateName, data)
 	})
 
+}
+
+func (l *Lsp) SendMsgToAdmin(m *mmsg.MSG) {
+	if admin := l.PermissionStateManager.ListAdmin(); len(admin) > 0 {
+		l.SendMsg(m, mmsg.NewPrivateTarget(admin[0]))
+	} else {
+		logger.Warn("未设置管理员，取消提示")
+	}
 }
 
 func (l *Lsp) PostStart(bot *bot.Bot) {
