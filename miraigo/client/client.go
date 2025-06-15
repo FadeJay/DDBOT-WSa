@@ -2589,7 +2589,7 @@ func (c *QQClient) GetGroupList() ([]*GroupInfo, error) {
 			GroupLevel:      uint32(group.GroupLevel),
 			MemberCount:     uint16(group.MemberCount),
 			MaxMemberCount:  uint16(group.MaxMemberCount),
-			client:          c,
+			Client:          c,
 		}
 	}
 	return groups, nil
