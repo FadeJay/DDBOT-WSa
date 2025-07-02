@@ -102,6 +102,8 @@ func builtins() FuncMap {
 		"writeLine":     writeLine,
 		"updateFile":    updateFile,
 		"writeFile":     writeFile,
+		"delFile":       delFile,
+		"renameFile":    renameFile,
 		"abort":         abort,
 		"fin":           fin,
 		"uriEncode":     uriEncode,

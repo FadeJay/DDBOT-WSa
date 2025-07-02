@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -511,6 +512,24 @@ func writeFile(path string, data string) error {
 	return nil
 }
 
+func delFile(path string) error {
+	err := os.Remove(path)
+	if err != nil {
+		logger.Errorf("template: delFile <%v> error %v", path, err)
+		return err
+	}
+	return nil
+}
+
+func renameFile(path string, newPath string) error {
+	err := os.Rename(path, newPath)
+	if err != nil {
+		logger.Errorf("template: renameFile <%v> error %v", path, err)
+		return err
+	}
+	return nil
+}
+
 type ddError struct {
 	ddErrType string
 	e         message.IMessageElement
@@ -574,13 +593,16 @@ func getTime(s interface{}, f string) string {
 			t = tmp
 		}
 	}
-	if f == "dateonly" {
+	switch f {
+	case "dateonly":
 		return t.Format(time.DateOnly)
-	} else if f == "timeonly" {
+	case "timeonly":
 		return t.Format(time.TimeOnly)
-	} else if f == "stamp" {
+	case "stamp":
 		return t.Format(time.Stamp)
-	} else {
+	case "unix":
+		return strconv.FormatInt(t.Unix(), 10)
+	default:
 		return t.Format(time.DateTime)
 	}
 }
