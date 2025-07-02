@@ -273,7 +273,7 @@ type StrangerInfo struct {
 	Age        int    `json:"age"`
 	QQLevel    int    `json:"qqLevel"`
 	Level      int    `json:"level"`
-	Status     int    `json:"status"`
+	Status     any    `json:"status"`
 	IsVip      bool   `json:"is_vip"`
 	IsYearsVip bool   `json:"is_years_vip"`
 	VipLevel   int    `json:"vip_level"`

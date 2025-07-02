@@ -304,8 +304,7 @@ func (g *GroupInfo) MuteAnonymous(id, nick string, seconds int32) error {
 	return nil
 }
 
-func (g *GroupInfo) Quit(client *QQClient) {
-	g.Client = client
+func (g *GroupInfo) Quit() {
 	if g.SelfPermission() != Owner {
 		g.Client.quitGroup(g)
 	}
