@@ -166,10 +166,9 @@ bilibili:
 twitter:
   baseurl:
     - "https://nitter.net/"
+    - "https://nitter.privacyredirect.com/"
   interval: 300s # 查询间隔，过快可能导致ip被暂时封禁
   useragent:
-  cfclearance:
-
 
 concern:
   emitInterval: 5s
