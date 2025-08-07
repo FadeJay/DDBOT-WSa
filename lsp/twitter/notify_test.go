@@ -1,6 +1,7 @@
 package twitter
 
 import (
+	"github.com/cnxysoft/DDBOT-WSa/internal/test"
 	"github.com/cnxysoft/DDBOT-WSa/proxy_pool"
 	"github.com/cnxysoft/DDBOT-WSa/proxy_pool/local_proxy_pool"
 	"github.com/stretchr/testify/assert"
@@ -43,6 +44,9 @@ func TestToMessage_ErrorHandling(t *testing.T) {
 		t.Fatalf("Failed to get proxy: %v", err)
 	}
 	proxy_pool.Init(pool)
+
+	Cookie, _ = test.NewJar()
+	defer test.DestroyJar(Cookie)
 
 	msg := notify.ToMessage()
 	// 验证在这种情况下不会panic，并且媒体元素为空

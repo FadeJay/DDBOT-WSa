@@ -4,10 +4,17 @@ import (
 	"bytes"
 	"compress/gzip"
 	"compress/zlib"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/andybalholm/brotli"
+	"github.com/cnxysoft/DDBOT-WSa/proxy_pool"
+	"github.com/cnxysoft/DDBOT-WSa/requests"
 	"io"
+	"math/rand"
 	"net/url"
 	"strconv"
 	"strings"
@@ -50,6 +57,22 @@ type Media struct {
 	Url  string `json:"url"`
 }
 
+type AnubisChallenge struct {
+	Rules struct {
+		Algorithm  string `json:"algorithm"`
+		Difficulty int    `json:"difficulty"`
+		ReportAs   int    `json:"report_as"`
+	} `json:"rules"`
+	Challenge string `json:"challenge"`
+}
+
+type AnubisResult struct {
+	Hash  string
+	Nonce int
+	Time  int
+	Host  string
+}
+
 func (t *Tweet) RtType() int {
 	if t.IsRetweet {
 		return RETWEET
@@ -66,24 +89,37 @@ func GetIdList(tweets []*Tweet) []string {
 	return idList
 }
 
-func ParseResp(htmlContent []byte, Url string) (*UserProfile, []*Tweet, error) {
+func ParseResp(htmlContent []byte, Url string) (*UserProfile, []*Tweet, *AnubisResult, error) {
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(htmlContent))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
+	parsedURL, _ := url.Parse(Url)
 
 	title := doc.Find("title").Text()
 	if title == "Just a moment..." {
-		return nil, nil, errors.New("cf_clearance has expired!")
+		return nil, nil, nil, errors.New("cf_clearance has expired!")
 	} else if strings.HasPrefix(title, "Error") {
 		message := doc.Find("div[class='error-panel']").Text()
 		if strings.Contains(message, "suspended") {
-			return nil, nil, errors.New(message)
+			return nil, nil, nil, errors.New(message)
 		}
-		return nil, nil, errors.New("Twitter has been Error.")
+		return nil, nil, nil, errors.New("Twitter has been Error.")
+	} else if strings.HasPrefix(title, "正在确认你是不是机器人！") {
+		challengeJson := doc.Find("script[id='anubis_challenge']").Text()
+		challenge := new(AnubisChallenge)
+		err = json.Unmarshal([]byte(challengeJson), &challenge)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		nonce, hash := ComputePoW(challenge.Challenge, challenge.Rules.Difficulty, challenge.Rules.Algorithm)
+		return nil, nil, &AnubisResult{
+			Hash:  hash,
+			Nonce: nonce,
+			Time:  rand.Intn(100),
+			Host:  parsedURL.Hostname(),
+		}, nil
 	}
-
-	parsedURL, _ := url.Parse(Url)
 
 	// 解析用户基本信息
 	var profile UserProfile
@@ -311,7 +347,7 @@ func ParseResp(htmlContent []byte, Url string) (*UserProfile, []*Tweet, error) {
 		})
 		tweets = append(tweets, &tweet)
 	})
-	return &profile, tweets, nil
+	return &profile, tweets, nil, nil
 }
 
 // 解压HTTP数据
@@ -344,4 +380,95 @@ func decompressZstd(data []byte) ([]byte, error) {
 	}
 	defer dctx.Close()
 	return io.ReadAll(dctx)
+}
+
+// 计算工作量证明（支持两种算法）
+func ComputePoW(challenge string, difficulty int, algorithm string) (nonce int, hash string) {
+	switch algorithm {
+	case "fast":
+		return computeFastPoW(challenge, difficulty)
+	case "slow":
+		fallthrough
+	default:
+		return computeSlowPoW(challenge, difficulty)
+	}
+}
+
+// 实现 SLOW 算法（检查完整字符）
+func computeSlowPoW(challenge string, difficulty int) (nonce int, hash string) {
+	prefix := strings.Repeat("0", difficulty)
+	nonce = 0
+
+	for {
+		data := challenge + fmt.Sprintf("%d", nonce)
+		sum := sha256.Sum256([]byte(data))
+		hash = hex.EncodeToString(sum[:])
+
+		if strings.HasPrefix(hash, prefix) {
+			return nonce, hash
+		}
+		nonce++
+	}
+}
+
+// 实现 FAST 算法（检查半字节）
+func computeFastPoW(challenge string, difficulty int) (nonce int, hash string) {
+	nonce = 0
+
+	for {
+		data := challenge + fmt.Sprintf("%d", nonce)
+		sum := sha256.Sum256([]byte(data))
+
+		// 检查是否满足难度要求
+		if checkNibbles(sum, difficulty) {
+			hash = hex.EncodeToString(sum[:])
+			return nonce, hash
+		}
+		nonce++
+	}
+}
+
+// 检查前N个半字节是否为0
+func checkNibbles(hash [32]byte, difficulty int) bool {
+	nibblesChecked := 0
+
+	for _, b := range hash {
+		// 检查高4位（第一个半字节）
+		if (b >> 4) != 0 {
+			return false
+		}
+		nibblesChecked++
+		if nibblesChecked >= difficulty {
+			return true
+		}
+
+		// 检查低4位（第二个半字节）
+		if (b & 0x0F) != 0 {
+			return false
+		}
+		nibblesChecked++
+		if nibblesChecked >= difficulty {
+			return true
+		}
+	}
+
+	return false
+}
+
+func FreshCookie(anubis *AnubisResult) {
+	opts := []requests.Option{
+		requests.RequestAutoHostOption(),
+		requests.ProxyOption(proxy_pool.PreferOversea),
+		requests.AddUAOption(UserAgent),
+		requests.RetryOption(3),
+		requests.WithCookieJar(Cookie),
+		requests.HeaderOption("accept-language", "zh-CN,zh;q=0.9"),
+	}
+	path := fmt.Sprintf("https://%s/.within.website/x/cmd/anubis/api/pass-challenge?"+
+		"response=%s&nonce=%d&redir=https://%s/&elapsedTime=%d", anubis.Host, anubis.Hash, anubis.Nonce, url.QueryEscape(anubis.Host), anubis.Time)
+	var resp bytes.Buffer
+	err := requests.Get(path, nil, &resp, opts...)
+	if err != nil {
+		logger.Errorf("twitter: fresh %s cookie error %v", anubis.Host, err)
+	}
 }

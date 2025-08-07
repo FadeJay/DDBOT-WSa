@@ -8,7 +8,8 @@ import (
 	"fmt"
 	"github.com/Sora233/MiraiGo-Template/config"
 	"math/rand"
-	"net/http"
+	"net/http/cookiejar"
+	"net/url"
 	"strings"
 	"time"
 
@@ -19,7 +20,6 @@ import (
 	"github.com/cnxysoft/DDBOT-WSa/lsp/mmsg"
 	"github.com/cnxysoft/DDBOT-WSa/proxy_pool"
 	"github.com/cnxysoft/DDBOT-WSa/requests"
-	"github.com/mmcdole/gofeed"
 )
 
 const (
@@ -44,9 +44,11 @@ const (
 var (
 	logger          = utils.GetModuleLogger(ConcernName)
 	requestInterval = time.Second * 5 // 每个请求之间的间隔
-	buildProfileURL = func(screenName string) string {
-		return BaseURL[rand.Intn(len(BaseURL))] + screenName
+	buildProfileURL = func(screenName string) *url.URL {
+		Url, _ := url.Parse(BaseURL[rand.Intn(len(BaseURL))] + screenName)
+		return Url
 	}
+	Cookie *cookiejar.Jar
 )
 
 type twitterStateManager struct {
@@ -61,7 +63,6 @@ func (t *twitterStateManager) GetGroupConcernConfig(groupCode int64, id interfac
 type twitterConcern struct {
 	*twitterStateManager
 	*extraKey
-	parser       *gofeed.Parser
 	newUsersChan chan interface{} // 新用户通知通道
 }
 
@@ -86,25 +87,25 @@ func (t *twitterConcern) ParseId(s string) (interface{}, error) {
 	return s, nil
 }
 
-//func buildProfileURL(screenName string) string {
-//	//return strings.ReplaceAll(BaseURL, "%s", screenName)
-//	return BaseURL[rand.Intn(len(BaseURL))] + screenName
-//}
-
 func CSTTime(t time.Time) time.Time {
-	loc, _ := time.LoadLocation("Asia/Shanghai")
+	loc, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		logger.Warnf("load location err, use time.Local, %v", err)
+		loc = time.Local
+	}
 	return t.In(loc)
 }
 
 func (t *twitterConcern) FindUserInfo(id string, refresh bool) (*UserInfo, error) {
+retry:
 	var info *UserInfo
 	if refresh {
 		Url := buildProfileURL(id)
-		opts := GetRequestOptions()
+		opts := SetRequestOptions()
 		var resp bytes.Buffer
 		var respHeaders requests.RespHeader
-		if err := requests.GetWithHeader(Url, nil, &resp, &respHeaders, opts...); err != nil {
-			logger.Errorf("请求用户信息失败：%v", err)
+		if err := requests.GetWithHeader(Url.String(), nil, &resp, &respHeaders, opts...); err != nil {
+			logger.WithField("Mirror", Url.Hostname()).Errorf("查找用户失败：%v", err)
 			return nil, err
 		}
 
@@ -116,9 +117,12 @@ func (t *twitterConcern) FindUserInfo(id string, refresh bool) (*UserInfo, error
 		}
 
 		// 解析用户信息
-		profile, _, err := ParseResp(body, Url)
+		profile, _, anubis, err := ParseResp(body, Url.String())
 		if err != nil {
 			return nil, err
+		} else if anubis != nil {
+			FreshCookie(anubis)
+			goto retry
 		} else if profile == nil {
 			return nil, errors.New("用户不存在或返回结果为空")
 		}
@@ -126,17 +130,6 @@ func (t *twitterConcern) FindUserInfo(id string, refresh bool) (*UserInfo, error
 			Id:   profile.ScreenName,
 			Name: profile.Name,
 		}
-		//data := io.Reader(&resp)
-		//feed, err := t.parser.Parse(data)
-		//if err != nil {
-		//	return nil, fmt.Errorf("parse UserInfo error: %v", err)
-		//}
-		//info = &UserInfo{
-		//	Id:              id,
-		//	Name:            feed.Title,
-		//	ProfileImageUrl: feed.Image.URL,
-		//}
-		//info.Name = GetShortName(feed)
 		err = t.AddUserInfo(info)
 		if err != nil {
 			return nil, err
@@ -468,15 +461,14 @@ func (t *twitterConcern) GetTweetIdList(id string) ([]string, error) {
 	return TweetList, nil
 }
 
-func GetRequestOptions() []requests.Option {
-	h1 := (http.DefaultTransport).(*http.Transport).Clone()
-	h1.MaxResponseHeaderBytes = 262144
+func SetRequestOptions() []requests.Option {
+	//h1 := (http.DefaultTransport).(*http.Transport).Clone()
+	//h1.MaxResponseHeaderBytes = 262144
 	return []requests.Option{
 		requests.ProxyOption(proxy_pool.PreferOversea),
 		requests.TimeoutOption(time.Second * 10),
 		requests.AddUAOption(UserAgent),
 		requests.RequestAutoHostOption(),
-		requests.CookieOption("cf_clearance", cfClearance),
 		requests.CookieOption("hlsPlayback", "on"),
 		requests.HeaderOption("Connection", "keep-alive"),
 		requests.HeaderOption("Accept",
@@ -500,7 +492,8 @@ func GetRequestOptions() []requests.Option {
 		requests.HeaderOption("Sec-Fetch-User", "?1"),
 		requests.HeaderOption("priority", "u=0, i"),
 		requests.RetryOption(3),
-		requests.WithTransport(h1),
+		//requests.WithTransport(h1),
+		requests.WithCookieJar(Cookie),
 	}
 }
 
@@ -527,19 +520,16 @@ func HtmlDecoder(respHeaders requests.RespHeader, resp bytes.Buffer) ([]byte, er
 }
 
 func (t *twitterConcern) GetTweets(id string) ([]*Tweet, error) {
+retry:
 	Url := buildProfileURL(id)
-	opts := GetRequestOptions()
+	opts := SetRequestOptions()
 	var resp bytes.Buffer
 	var respHeaders requests.RespHeader
-	if err := requests.GetWithHeader(Url, nil, &resp, &respHeaders, opts...); err != nil {
-		logger.WithField("userId", id).Errorf("获取推文列表失败：%v", err)
+	if err := requests.GetWithHeader(Url.String(), nil, &resp, &respHeaders, opts...); err != nil {
+		logger.WithField("Mirror", Url.Hostname()).WithField("userId", id).Errorf("获取推文列表失败：%v", err)
 		return nil, err
 	}
-	//data := io.Reader(&resp)
-	//feed, err := t.parser.Parse(data)
-	//if err != nil {
-	//	return nil, fmt.Errorf("GetTweets error: %v", err)
-	//}
+
 	// 解压缩HTML
 	body, err := HtmlDecoder(respHeaders, resp)
 	if err != nil {
@@ -548,38 +538,19 @@ func (t *twitterConcern) GetTweets(id string) ([]*Tweet, error) {
 	}
 
 	// 解析解压后的数据
-	_, tweets, err := ParseResp(body, Url)
+	_, tweets, anubis, err := ParseResp(body, Url.String())
 	if err != nil {
 		logger.WithField("userId", id).Errorf("解析HTML失败：%v", err)
 		return nil, err
+	} else if anubis != nil {
+		FreshCookie(anubis)
+		goto retry
 	} else if tweets == nil {
 		logger.WithField("userId", id).Warn("获取推文列表失败：无法解析数据或推文列表为空")
 		return nil, nil
 	}
-	//var result []*TweetItem
-	//for _, item := range tweets {
-	//	result = append(result, &TweetItem{
-	//		Type:      item.RtType(),
-	//		Title:     item.Content,
-	//		Link:      item.Url,
-	//		Media:     item.Media,
-	//		Published: item.CreatedAt,
-	//		Author: &UserInfo{
-	//			Id:   item.OrgUser.ScreenName,
-	//			Name: item.OrgUser.Name,
-	//		},
-	//	})
-	//}
-	// 时间排序
-	//t.sortTweetsByPublished(result)
 	return tweets, nil
 }
-
-//func (t *twitterConcern) sortTweetsByPublished(tweets []*TweetItem) {
-//	sort.SliceStable(tweets, func(i, j int) bool {
-//		return tweets[i].Published.Before(tweets[j].Published)
-//	})
-//}
 
 func (t *twitterConcern) reverseTweets(s []*Tweet) {
 	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
@@ -683,6 +654,5 @@ func newConcern(notifyChan chan<- concern.Notify) *twitterConcern {
 	// 默认是string格式的id
 	sm := &twitterStateManager{concern.NewStateManagerWithStringID(Site, notifyChan)}
 	// 如果要使用int64格式的id，可以用下面的
-	//c.StateManager = concern.NewStateManagerWithInt64ID(Site, notifyChan)
-	return &twitterConcern{sm, new(extraKey), gofeed.NewParser(), make(chan interface{}, 10)}
+	return &twitterConcern{sm, new(extraKey), make(chan interface{}, 10)}
 }

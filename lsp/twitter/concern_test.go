@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 )
 
@@ -90,8 +91,9 @@ func TestTwitterConcern_GetUserInfo(t *testing.T) {
 
 			// 替换 buildProfileURL
 			originalBuildProfileURL := buildProfileURL
-			buildProfileURL = func(screenName string) string {
-				return ts.URL
+			buildProfileURL = func(screenName string) *url.URL {
+				Url, _ := url.Parse(ts.URL)
+				return Url
 			}
 			defer func() { buildProfileURL = originalBuildProfileURL }()
 
@@ -101,6 +103,9 @@ func TestTwitterConcern_GetUserInfo(t *testing.T) {
 				},
 				extraKey: new(extraKey),
 			}
+
+			Cookie, _ = test.NewJar()
+			defer test.DestroyJar(Cookie)
 
 			result, err := tc.FindUserInfo(tt.screenName, true)
 
@@ -334,8 +339,9 @@ TVアニメは7月6日(日)放送開始です！
 
 	// 替换 buildProfileURL 函数（需要修改 production 代码以支持此操作）
 	originalBuildProfileURL := buildProfileURL
-	buildProfileURL = func(screenName string) string {
-		return ts.URL
+	buildProfileURL = func(screenName string) *url.URL {
+		Url, _ := url.Parse(ts.URL)
+		return Url
 	}
 	defer func() { buildProfileURL = originalBuildProfileURL }()
 
@@ -349,6 +355,10 @@ TVアニメは7月6日(日)放送開始です！
 		},
 		extraKey: new(extraKey),
 	}
+
+	// 创建 CookieJar
+	Cookie, _ = test.NewJar()
+	defer test.DestroyJar(Cookie)
 
 	// 执行测试
 	tweets, err := tc.GetTweets("testuser")
