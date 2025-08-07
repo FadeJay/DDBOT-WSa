@@ -718,6 +718,17 @@ func (l *Lsp) Serve(bot *bot.Bot) {
 		_, _ = template.LoadAndExec(templateName, data)
 	})
 
+	bot.BotSendFailedEvent.Subscribe(func(qqClient *client.QQClient, event *client.BotSendFailedEvent) {
+		templateName := "notify.bot.send_failed.tmpl"
+		data := map[string]interface{}{
+			"template_name": templateName,
+			"message":       event.Message,
+			"target_id":     event.TargetUin,
+			"times":         event.Times,
+		}
+		_, _ = template.LoadAndExec(templateName, data)
+	})
+
 }
 
 func (l *Lsp) SendMsgToAdmin(m *mmsg.MSG) {

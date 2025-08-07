@@ -117,6 +117,7 @@ type QQClient struct {
 	DeleteFriendEvent                 EventHandle[*DeleteFriendEvent]
 	GroupUploadNotifyEvent            EventHandle[*GroupUploadNotifyEvent]
 	BotOfflineEvent                   EventHandle[*BotOfflineEvent]
+	BotSendFailedEvent                EventHandle[*BotSendFailedEvent]
 
 	// message state
 	msgSvcCache            *utils.Cache[unit]
@@ -2906,4 +2907,19 @@ func (c *QQClient) GetStrangerInfo(uid int64) (StrangerInfo, error) {
 		return StrangerInfo{}, err
 	}
 	return resp, nil
+}
+
+func (c *QQClient) handleSendFailed(add bool, msg string, targetId string) {
+	if add {
+		c.retryTimes++
+		if c.retryTimes == config.GlobalConfig.GetInt("sendFailureReminder.times") {
+			c.BotSendFailedEvent.dispatch(c, &BotSendFailedEvent{
+				msg,
+				targetId,
+				c.retryTimes,
+			})
+		}
+	} else {
+		c.retryTimes = 0
+	}
 }

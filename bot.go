@@ -134,6 +134,9 @@ var exampleConfig = func() string {
 bot:
   onJoinGroup: 
     rename: "【bot】"  # BOT进群后自动改名，默认改名为“【bot】”，如果留空则不自动改名
+  sendFailureReminder:
+    enable: false  # 是否启用发送失败达到设定次数后调用notify.bot.send_failed.tmpl模板
+    times: 5  # 连续失败次数
 
 # 初次运行时将不使用b站帐号方便进行测试
 # 如果不使用b站帐号，则推荐订阅数不要超过5个，否则推送延迟将上升
