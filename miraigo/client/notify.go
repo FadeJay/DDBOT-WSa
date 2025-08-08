@@ -57,9 +57,10 @@ type (
 	}
 
 	BotSendFailedEvent struct {
-		Message   string
-		TargetUin string
-		Times     int
+		Message    string
+		TargetUin  string
+		TargetType int
+		Times      int
 	}
 )
 

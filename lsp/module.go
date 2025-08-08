@@ -724,6 +724,7 @@ func (l *Lsp) Serve(bot *bot.Bot) {
 			"template_name": templateName,
 			"message":       event.Message,
 			"target_id":     event.TargetUin,
+			"target_type":   event.TargetType,
 			"times":         event.Times,
 		}
 		_, _ = template.LoadAndExec(templateName, data)

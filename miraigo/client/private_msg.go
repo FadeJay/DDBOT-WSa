@@ -94,7 +94,7 @@ func (c *QQClient) SendPrivateMessage(target int64, m *message.SendingMessage, n
 	}, expTime)
 	if err != nil {
 		if swReport := config.GlobalConfig.GetBool("sendFailureReminder.enable"); swReport {
-			c.handleSendFailed(true, newstr, finalUserID)
+			c.handleSendFailed(true, newstr, 1, finalUserID)
 		}
 		logger.Errorf("发送私聊消息失败: %v", err)
 		return nil
@@ -124,7 +124,7 @@ func (c *QQClient) SendPrivateMessage(target int64, m *message.SendingMessage, n
 		Elements: m.Elements,
 	}
 	go c.SelfPrivateMessageEvent.dispatch(c, retMsg)
-	c.handleSendFailed(false, "", finalUserID)
+	c.handleSendFailed(false, "", 1, finalUserID)
 	return retMsg
 }
 

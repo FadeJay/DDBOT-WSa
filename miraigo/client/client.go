@@ -2909,13 +2909,14 @@ func (c *QQClient) GetStrangerInfo(uid int64) (StrangerInfo, error) {
 	return resp, nil
 }
 
-func (c *QQClient) handleSendFailed(add bool, msg string, targetId string) {
+func (c *QQClient) handleSendFailed(add bool, msg string, targetType int, targetId string) {
 	if add {
 		c.retryTimes++
 		if c.retryTimes == config.GlobalConfig.GetInt("sendFailureReminder.times") {
 			c.BotSendFailedEvent.dispatch(c, &BotSendFailedEvent{
 				msg,
 				targetId,
+				targetType,
 				c.retryTimes,
 			})
 		}
