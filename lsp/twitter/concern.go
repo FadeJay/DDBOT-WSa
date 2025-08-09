@@ -621,7 +621,25 @@ func (t *twitterConcern) GetNewTweetsFromTweetId(oldNewsInfo *NewsInfo, tweets [
 		oldTweetList, _ := t.GetTweetIdList(oldNewsInfo.UserInfo.Id)
 		n := checkList(oldTweetList, tweets)
 		if n == -1 {
-			retTweets = append(retTweets, tweets[0])
+			if len(tweets) > 1 {
+				oneTime, err := ParseSnowflakeTimestamp(tweets[0].ID)
+				if err != nil {
+					logger.WithError(err).Errorf("ParseSnowflakeTimestamp error")
+					return nil
+				}
+				SecTime, err := ParseSnowflakeTimestamp(tweets[1].ID)
+				if err != nil {
+					logger.WithError(err).Errorf("ParseSnowflakeTimestamp error")
+					return nil
+				}
+				if oneTime.Before(SecTime) && tweets[0].Pinned {
+					retTweets = append(retTweets, tweets[1])
+				} else {
+					retTweets = append(retTweets, tweets[0])
+				}
+			} else {
+				retTweets = append(retTweets, tweets[0])
+			}
 		}
 	}
 	return retTweets
