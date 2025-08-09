@@ -234,10 +234,11 @@ func builtins() FuncMap {
 		"delStrSlice": delStrSlice,
 
 		// http
-		"httpGet":      httpGet,
-		"httpPostJson": httpPostJson,
-		"httpPostForm": httpPostForm,
-		"downloadFile": downloadFile,
+		"httpGet":       httpGet,
+		"httpPostJson":  httpPostJson,
+		"httpPostForm":  httpPostForm,
+		"downloadFile":  downloadFile,
+		"parseBiliPost": getBiliPost,
 
 		// json
 		"toGJson": toGJson,

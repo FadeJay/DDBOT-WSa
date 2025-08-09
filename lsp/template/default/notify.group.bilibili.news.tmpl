@@ -45,16 +45,30 @@
     {{ printf "%v\n%v\n%v%v%v%v\n%v\n" $msg .dynamic.Date $title .dynamic.Content $orgTip .dynamic.Video.Title .dynamic.Video.Desc -}}
     {{ pic .dynamic.Video.CoverUrl -}}
 {{ else if eq .dynamic.Type 64 -}}
+    {{ $PostUrl := "" -}}
     {{ if .dynamic.WithOrigin -}}
         {{ $msg = join "" (list .dynamic.User.Name "转发了" .dynamic.OriginUser.Name "的专栏：") -}}
         {{ $orgTip = "\n\n原专栏：\n" -}}
+        {{ $PostUrl = .dynamic.OriginDyUrl -}}
     {{ else -}}
         {{ $msg = join "" (list .dynamic.User.Name "发布了新专栏：") -}}
+        {{ $PostUrl = .dynamic.DynamicUrl -}}
     {{ end -}}
-    {{ printf "%v\n%v\n%v%v%v%v\n%v\n" $msg .dynamic.Date $title .dynamic.Content $orgTip .dynamic.Post.Title .dynamic.Post.Summary -}}
-    {{ if .dynamic.Post.ImageUrls -}}
-        {{ range $v := .dynamic.Post.ImageUrls -}}
-            {{ pic $v -}}
+    {{ if .parsePost -}}
+        {{ printf "%v\n%v\n%v%v%v%v\n" $msg .dynamic.Date $title .dynamic.Content $orgTip .dynamic.Post.Title -}}
+        {{ range $v := parseBiliPost $PostUrl -}}
+            {{ if eq $v.Type "text" -}}
+                {{ printf "%v\n" $v.Ele -}}
+            {{ else if eq $v.Type "image" -}}
+                {{ pic $v.Ele -}}
+            {{ end -}}
+        {{ end -}}
+    {{ else -}}
+        {{ printf "%v\n%v\n%v%v%v%v\n%v\n" $msg .dynamic.Date $title .dynamic.Content $orgTip .dynamic.Post.Title .dynamic.Post.Summary -}}
+        {{ if .dynamic.Post.ImageUrls -}}
+            {{ range $v := .dynamic.Post.ImageUrls -}}
+                {{ pic $v -}}
+            {{ end -}}
         {{ end -}}
     {{ end -}}
 {{ else if eq .dynamic.Type 256 -}}

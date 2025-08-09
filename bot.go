@@ -158,6 +158,7 @@ bilibili:
   minFollowerCap: 0        # 设置订阅的b站用户需要满足至少有多少个粉丝，默认为0，设为-1表示无限制
   disableSub: false        # 禁止ddbot去b站关注帐号，这意味着只能订阅帐号已关注的用户，或者在b站手动关注
   onlyOnlineNotify: false  # 是否不推送Bot离线期间的动态和直播，默认为false表示需要推送，设置为true表示不推送
+  autoParsePosts: false    # 自动解析专栏，将发送专栏动态改为发送专栏内容
 
 # 支持使用多个nitter镜像，默认使用官方镜像（第三方镜像可能有额外校验）
 # 使用lightbrd镜像请自行先访问https://lightbrd.com/进行cookies的获取

@@ -450,14 +450,16 @@ func NewCacheCard(card *Card) *CacheCard {
 }
 
 type DynamicInfo struct {
-	Type       DynamicDescType
-	Id         string
-	WithOrigin bool
-	Date       string
-	Content    string
-	Title      string
-	DynamicUrl string
-	User       struct {
+	Type        DynamicDescType
+	Id          string
+	WithOrigin  bool
+	OriginDyId  string
+	OriginDyUrl string
+	Date        string
+	Content     string
+	Title       string
+	DynamicUrl  string
+	User        struct {
 		Uid  int64
 		Name string
 		Face string
@@ -573,6 +575,8 @@ func (c *CacheCard) prepare() {
 	switch card.GetDesc().GetType() {
 	case DynamicDescType_WithOrigin:
 		c.dynamic.WithOrigin = true
+		c.dynamic.OriginDyId = card.GetDesc().GetOrigDyIdStr()
+		c.dynamic.OriginDyUrl = DynamicUrl(c.dynamic.OriginDyId)
 		cardOrigin, err := card.GetCardWithOrig()
 		if err != nil {
 			log.WithField("card", card).Errorf("GetCardWithOrig failed %v", err)
@@ -970,8 +974,9 @@ func (c *CacheCard) GetMSG() *mmsg.MSG {
 	c.once.Do(func() {
 		c.prepare()
 		var data = map[string]interface{}{
-			"dynamic": c.dynamic,
-			"msg":     c.orgMsg,
+			"dynamic":   c.dynamic,
+			"msg":       c.orgMsg,
+			"parsePost": config.GlobalConfig.GetBool("bilibili.autoParsePosts"),
 		}
 		var err error
 		c.msgCache, err = template.LoadAndExec("notify.group.bilibili.news.tmpl", data)
