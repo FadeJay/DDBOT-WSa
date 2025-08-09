@@ -112,7 +112,8 @@ retry:
 		// 解压缩HTML
 		body, err := HtmlDecoder(respHeaders, resp)
 		if err != nil {
-			logger.WithField("Url", Url).WithField("User", id).Errorf("解压缩HTML失败：%v", err)
+			logger.WithField("Mirror", Url.Hostname()).
+				WithField("User", id).Errorf("解压缩HTML失败：%v", err)
 			return nil, err
 		}
 
@@ -560,20 +561,23 @@ retry:
 	// 解压缩HTML
 	body, err := HtmlDecoder(respHeaders, resp)
 	if err != nil {
-		logger.WithField("userId", id).Errorf("解压缩HTML失败：%v", err)
+		logger.WithField("Mirror", Url.Hostname()).
+			WithField("userId", id).Errorf("解压缩HTML失败：%v", err)
 		return nil, err
 	}
 
 	// 解析解压后的数据
 	_, tweets, anubis, err := ParseResp(body, Url.String())
 	if err != nil {
-		logger.WithField("userId", id).Errorf("解析HTML失败：%v", err)
+		logger.WithField("Mirror", Url.Hostname()).
+			WithField("userId", id).Errorf("解析HTML失败：%v", err)
 		return nil, err
 	} else if anubis != nil {
 		FreshCookie(anubis)
 		goto retry
 	} else if tweets == nil {
-		logger.WithField("userId", id).Warn("获取推文列表失败：无法解析数据或推文列表为空")
+		logger.WithField("Mirror", Url.Hostname()).
+			WithField("userId", id).Warn("获取推文列表失败：无法解析数据或推文列表为空")
 		return nil, nil
 	}
 	return tweets, nil
@@ -586,8 +590,21 @@ func (t *twitterConcern) reverseTweets(s []*Tweet) {
 }
 
 func (t *twitterConcern) GetNewTweetsFromTweetId(oldNewsInfo *NewsInfo, tweets []*Tweet, LatestNewsTs int64) []*Tweet {
-	if index := findTweetIndex(tweets, oldNewsInfo.LatestTweetId); index >= 0 && !tweets[index].Pinned {
-		return tweets[:index]
+	if index := findTweetIndex(tweets, oldNewsInfo.LatestTweetId); index >= 0 {
+		var startIndex int
+		if tweets[startIndex].Pinned {
+			oldTime, err := ParseSnowflakeTimestamp(oldNewsInfo.LatestTweetId)
+			if err != nil {
+				logger.WithError(err).Errorf("ParseSnowflakeTimestamp error")
+				return nil
+			}
+			if index == 1 && tweets[0].CreatedAt.After(oldTime) {
+				startIndex = 0
+			} else {
+				startIndex++
+			}
+		}
+		return tweets[startIndex:index]
 	}
 	var retTweets []*Tweet
 	for _, tweet := range tweets {
