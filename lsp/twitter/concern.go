@@ -382,8 +382,12 @@ func (t *twitterConcern) freshNewsInfo(ctype concern_type.Type, id interface{}) 
 			return nil, err
 		}
 		LatestNewsTs, _ := t.GetLastFreshTime(userId)
-		if len(newTweets) > 0 && newTweets[0].ID != "" {
-			newsInfo.LatestTweetId = newTweets[0].ID
+		newLastTweetId, err := t.getLastTweetId(newTweets)
+		if err != nil {
+			return nil, err
+		}
+		if len(newTweets) > 0 && newLastTweetId != "" {
+			newsInfo.LatestTweetId = newLastTweetId
 			if oldNewsInfo == nil || (newsInfo.LatestTweetId != oldNewsInfo.LatestTweetId) {
 				if oldNewsInfo == nil || oldNewsInfo.LatestTweetId == "" {
 					oldNewsInfo = &NewsInfo{
@@ -437,6 +441,29 @@ func (t *twitterConcern) freshNewsInfo(ctype concern_type.Type, id interface{}) 
 		}
 	}
 	return result, nil
+}
+
+func (t *twitterConcern) getLastTweetId(tweets []*Tweet) (string, error) {
+	for i, tweet := range tweets {
+		if tweet.Pinned && len(tweets) > 1 {
+			OneTweetStamp, err := ParseSnowflakeTimestamp(tweet.ID)
+			if err != nil {
+				return "", err
+			}
+			SecTweetStamp, err := ParseSnowflakeTimestamp(tweets[i+1].ID)
+			if err != nil {
+				return "", err
+			}
+			if OneTweetStamp.After(SecTweetStamp) {
+				return tweet.ID, nil
+			} else {
+				return tweets[i+1].ID, nil
+			}
+		} else {
+			return tweet.ID, nil
+		}
+	}
+	return "", errors.New("推文列表为空。")
 }
 
 func (t *twitterConcern) SetLastFreshTime(id string, ts time.Time) error {
@@ -559,30 +586,27 @@ func (t *twitterConcern) reverseTweets(s []*Tweet) {
 }
 
 func (t *twitterConcern) GetNewTweetsFromTweetId(oldNewsInfo *NewsInfo, tweets []*Tweet, LatestNewsTs int64) []*Tweet {
-	if index := findTweetIndex(tweets, oldNewsInfo.LatestTweetId); index >= 0 {
+	if index := findTweetIndex(tweets, oldNewsInfo.LatestTweetId); index >= 0 && !tweets[index].Pinned {
 		return tweets[:index]
 	}
 	var retTweets []*Tweet
-	//for _, tweet := range tweets {
-	//	//oldTime, err := ParseSnowflakeTimestamp(oldNewsInfo.LatestTweetId)
-	//	//if err != nil {
-	//	//	logger.WithError(err).Errorf("ParseSnowflakeTimestamp error")
-	//	//	continue
-	//	//}
-	//	//if tweet.CreatedAt.Before(oldTime) {
-	//	//	continue
-	//	//}
-	//	if tweet.CreatedAt.After(time.Unix(LatestNewsTs, 0)) {
-	//		retTweets = append(retTweets, tweet)
-	//	}
-	//}
-	//if len(retTweets) == 0 {
-	oldTweetList, _ := t.GetTweetIdList(oldNewsInfo.UserInfo.Id)
-	n := checkList(oldTweetList, tweets)
-	if n == -1 {
-		retTweets = append(retTweets, tweets[0])
+	for _, tweet := range tweets {
+		oldTime, err := ParseSnowflakeTimestamp(oldNewsInfo.LatestTweetId)
+		if err != nil {
+			logger.WithError(err).Errorf("ParseSnowflakeTimestamp error")
+			continue
+		}
+		if tweet.CreatedAt.After(oldTime) && tweet.CreatedAt.After(time.Unix(LatestNewsTs, 0)) {
+			retTweets = append(retTweets, tweet)
+		}
 	}
-	//}
+	if len(retTweets) == 0 {
+		oldTweetList, _ := t.GetTweetIdList(oldNewsInfo.UserInfo.Id)
+		n := checkList(oldTweetList, tweets)
+		if n == -1 {
+			retTweets = append(retTweets, tweets[0])
+		}
+	}
 	return retTweets
 }
 

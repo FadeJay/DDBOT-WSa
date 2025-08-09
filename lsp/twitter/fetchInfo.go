@@ -43,6 +43,7 @@ type Tweet struct {
 	CreatedAt  time.Time    `json:"created_at"`
 	Likes      int64        `json:"likes"`
 	Retweets   int64        `json:"retweets"`
+	Pinned     bool         `json:"pinned"`
 	Replies    int64        `json:"replies"`
 	Media      []*Media     `json:"media"`
 	IsRetweet  bool         `json:"is_retweet"`
@@ -280,6 +281,9 @@ func ParseResp(htmlContent []byte, Url string) (*UserProfile, []*Tweet, *AnubisR
 				})
 			}
 		})
+
+		// 判断是否置顶
+		tweet.Pinned = item.Find(".pinned").Length() > 0
 
 		// 判断是否转推
 		tweet.IsRetweet = item.Find(".retweet-header").Length() > 0
