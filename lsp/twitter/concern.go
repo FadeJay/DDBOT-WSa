@@ -602,6 +602,9 @@ func (t *twitterConcern) GetNewTweetsFromTweetId(oldNewsInfo *NewsInfo, tweets [
 				startIndex = 0
 			} else {
 				startIndex++
+				if index == 0 {
+					index++
+				}
 			}
 		}
 		return tweets[startIndex:index]
