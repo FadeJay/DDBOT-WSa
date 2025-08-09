@@ -63,7 +63,18 @@ type AnubisChallenge struct {
 		Difficulty int    `json:"difficulty"`
 		ReportAs   int    `json:"report_as"`
 	} `json:"rules"`
-	Challenge string `json:"challenge"`
+	Challenge any `json:"challenge"`
+}
+
+type AnubisChallengeSub struct {
+	Id       string    `json:"id"`
+	IssuedAt time.Time `json:"issuedAt"`
+	Metadata struct {
+		UserAgent string `json:"User-Agent"`
+		XRealIp   string `json:"X-Real-Ip"`
+	} `json:"metadata"`
+	Method     string `json:"method"`
+	RandomData string `json:"randomData"`
 }
 
 type AnubisResult struct {
@@ -71,6 +82,7 @@ type AnubisResult struct {
 	Nonce int
 	Time  int
 	Host  string
+	Id    string
 }
 
 func (t *Tweet) RtType() int {
@@ -108,17 +120,37 @@ func ParseResp(htmlContent []byte, Url string) (*UserProfile, []*Tweet, *AnubisR
 	} else if strings.HasPrefix(title, "正在确认你是不是机器人！") {
 		challengeJson := doc.Find("script[id='anubis_challenge']").Text()
 		challenge := new(AnubisChallenge)
+		var challengeTarget string
+		var challengeSub *AnubisChallengeSub
 		err = json.Unmarshal([]byte(challengeJson), &challenge)
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		nonce, hash := ComputePoW(challenge.Challenge, challenge.Rules.Difficulty, challenge.Rules.Algorithm)
-		return nil, nil, &AnubisResult{
+		switch challenge.Challenge.(type) {
+		case string:
+			challengeTarget = challenge.Challenge.(string)
+		case map[string]interface{}:
+			marshal, err := json.Marshal(challenge.Challenge)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			err = json.Unmarshal(marshal, &challengeSub)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			challengeTarget = challengeSub.RandomData
+		}
+		nonce, hash := ComputePoW(challengeTarget, challenge.Rules.Difficulty, challenge.Rules.Algorithm)
+		result := &AnubisResult{
 			Hash:  hash,
 			Nonce: nonce,
 			Time:  rand.Intn(100),
 			Host:  parsedURL.Hostname(),
-		}, nil
+		}
+		if challengeSub != nil {
+			result.Id = challengeSub.Id
+		}
+		return nil, nil, result, nil
 	}
 
 	// 解析用户基本信息
@@ -464,8 +496,12 @@ func FreshCookie(anubis *AnubisResult) {
 		requests.WithCookieJar(Cookie),
 		requests.HeaderOption("accept-language", "zh-CN,zh;q=0.9"),
 	}
+	var addAnubisId string
+	if anubis.Id != "" {
+		addAnubisId = "id=" + anubis.Id + "&"
+	}
 	path := fmt.Sprintf("https://%s/.within.website/x/cmd/anubis/api/pass-challenge?"+
-		"response=%s&nonce=%d&redir=https://%s/&elapsedTime=%d", anubis.Host, anubis.Hash, anubis.Nonce, url.QueryEscape(anubis.Host), anubis.Time)
+		"%sresponse=%s&nonce=%d&redir=https://%s/&elapsedTime=%d", anubis.Host, addAnubisId, anubis.Hash, anubis.Nonce, url.QueryEscape(anubis.Host), anubis.Time)
 	var resp bytes.Buffer
 	err := requests.Get(path, nil, &resp, opts...)
 	if err != nil {
