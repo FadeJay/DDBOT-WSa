@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// 这里面可以定义推送中使用的结构
+const MaxLatestWteetIds = 20
 
 type NewsInfo struct {
 	*UserInfo
@@ -54,31 +54,50 @@ func (l *LatestTweetIds) GetLatestTweetTs() *time.Time {
 }
 
 func (l *LatestTweetIds) GetLatestTweetId() string {
-	if len(l.TweetId) == 0 {
+	if l == nil || len(l.TweetId) == 0 {
 		return ""
 	}
 	return l.TweetId[len(l.TweetId)-1]
 }
 
 func (l *LatestTweetIds) SetLatestTweetId(tweetId string) {
-	if l.ExistTweetId(tweetId) {
+	if l == nil || tweetId == l.GetPinnedTweet() {
 		return
 	}
-	maxIds := 20
-	if len(l.TweetId) < maxIds {
-		l.TweetId = append(l.TweetId, tweetId)
-	} else if len(l.TweetId) >= maxIds {
-		l.TweetId = l.TweetId[:len(l.TweetId)-1]
+	po := l.HasTweetId(tweetId)
+	if po != -1 {
+		var tmpLatestTweetId []string
+		for i := range l.TweetId {
+			if i == po {
+				continue
+			}
+			tmpLatestTweetId = append(tmpLatestTweetId, l.TweetId[i])
+		}
+		l.SetLatestTweetIds(tmpLatestTweetId)
 	}
+	if len(l.TweetId) >= MaxLatestWteetIds {
+		l.TweetId = l.TweetId[1:len(l.TweetId)]
+	}
+	l.TweetId = append(l.TweetId, tweetId)
 }
 
-func (l *LatestTweetIds) ExistTweetId(tweetId string) bool {
-	for _, TweetId := range l.TweetId {
+func (l *LatestTweetIds) SetLatestTweetIds(tweets []string) {
+	if l == nil {
+		return
+	}
+	l.TweetId = tweets
+}
+
+func (l *LatestTweetIds) HasTweetId(tweetId string) int {
+	if l == nil {
+		return -1
+	}
+	for i, TweetId := range l.TweetId {
 		if TweetId == tweetId {
-			return true
+			return i
 		}
 	}
-	return false
+	return -1
 }
 
 func (l *LatestTweetIds) SetPinnedTweet(tweetId string) bool {
@@ -91,6 +110,9 @@ func (l *LatestTweetIds) SetPinnedTweet(tweetId string) bool {
 }
 
 func (l *LatestTweetIds) GetPinnedTweet() string {
+	if l == nil {
+		return ""
+	}
 	return l.PinnedId
 }
 

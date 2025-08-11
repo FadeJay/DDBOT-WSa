@@ -14,7 +14,7 @@ func (e *extraKey) UserInfoKey(keys ...interface{}) string {
 	return buntdb.TwitterUserInfoKey(keys...)
 }
 func (e *extraKey) LatestTweetIdsKey(keys ...interface{}) string {
-	return buntdb.TwitterNewsInfoKey(keys...)
+	return buntdb.LatestTweetIdsKey(keys...)
 }
 func (e *extraKey) LastFreshKey(keys ...interface{}) string {
 	return buntdb.TwitterLastFreshKey(keys...)

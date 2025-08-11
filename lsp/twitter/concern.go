@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"net/http/cookiejar"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -372,20 +373,26 @@ func (t *twitterConcern) freshNewsInfo(ctype concern_type.Type, id interface{}) 
 			logger.WithError(err).Errorf("内部错误 - 已推送推文列表获取失败：%v", err)
 			return nil, err
 		}
-		latestFreshTime, err := t.GetLastFreshTime(userId)
-		if err != nil && err.Error() != ErrNotFound {
-			logger.WithError(err).Errorf("内部错误 - 最后刷新时间获取失败：%v", err)
-			return nil, err
-		}
-		newLastTweetId, err := getLastTweetId(newTweets)
+		//latestFreshTime, err := t.GetLastFreshTime(userId)
+		//if err != nil && err.Error() != ErrNotFound {
+		//	logger.WithError(err).Errorf("内部错误 - 最后刷新时间获取失败：%v", err)
+		//	return nil, err
+		//}
+		newLastTweetId, err := oldTweetIds.getNewLatestTweetId(newTweets)
 		if err != nil {
+			logger.WithError(err).Errorf("内部错误 - 获取最新推文失败：%v", err)
 			return nil, err
 		}
 		if len(newTweets) > 0 && newLastTweetId != "" {
 			if oldTweetIds == nil || (newLastTweetId != oldTweetIds.TweetId[0]) {
 				if oldTweetIds == nil {
 					oldTweetIds = new(LatestTweetIds)
-					oldTweetIds.SetLatestTweetId(newLastTweetId)
+					tweets := slices.Clone(newTweets)
+					t.reverseTweets(tweets)
+					oldTweetIds.SetLatestTweetIds(GetIdList(tweets))
+					if newTweets[0].Pinned {
+						oldTweetIds.SetPinnedTweet(newTweets[0].ID)
+					}
 					err = t.SetLastFreshTime(userId, time.Now().UTC())
 					if err != nil {
 						logger.Errorf("内部错误 - 最后刷新时间更新失败：%v", err)
@@ -398,7 +405,7 @@ func (t *twitterConcern) freshNewsInfo(ctype concern_type.Type, id interface{}) 
 					}
 				}
 				// 获取超过最后推送时间的tweet
-				NewTweets := t.GetNewTweetsFromTweetId(oldTweetIds, newTweets, userId, latestFreshTime)
+				NewTweets := t.GetNewTweetsFromTweetId(oldTweetIds, newTweets)
 				if len(NewTweets) > 0 {
 					t.reverseTweets(NewTweets)
 					// 将新的tweet添加到result中
@@ -408,6 +415,10 @@ func (t *twitterConcern) freshNewsInfo(ctype concern_type.Type, id interface{}) 
 							Tweet:    tweet,
 						}
 						result = append(result, res)
+						oldTweetIds.SetLatestTweetId(tweet.ID)
+						if tweet.Pinned {
+							oldTweetIds.SetPinnedTweet(tweet.ID)
+						}
 					}
 					err = t.SetTweetIdList(userId, GetIdList(newTweets))
 					if err != nil {
@@ -433,18 +444,10 @@ func (t *twitterConcern) freshNewsInfo(ctype concern_type.Type, id interface{}) 
 	return result, nil
 }
 
-func getLastTweetId(tweets []*Tweet) (string, error) {
+func (l *LatestTweetIds) getNewLatestTweetId(tweets []*Tweet) (string, error) {
 	for i, tweet := range tweets {
 		if tweet.Pinned && len(tweets) > 1 {
-			OneTweetStamp, err := ParseSnowflakeTimestamp(tweet.ID)
-			if err != nil {
-				return "", err
-			}
-			SecTweetStamp, err := ParseSnowflakeTimestamp(tweets[i+1].ID)
-			if err != nil {
-				return "", err
-			}
-			if OneTweetStamp.After(SecTweetStamp) {
+			if l.HasTweetId(tweet.ID) != -1 && tweet.ID != l.GetPinnedTweet() {
 				return tweet.ID, nil
 			} else {
 				return tweets[i+1].ID, nil
@@ -579,73 +582,31 @@ func (t *twitterConcern) reverseTweets(s []*Tweet) {
 }
 
 func (t *twitterConcern) GetNewTweetsFromTweetId(
-	oldLatestTweetIds *LatestTweetIds, tweets []*Tweet, userId string, latestFreshTime int64) []*Tweet {
+	oldLatestTweetIds *LatestTweetIds, tweets []*Tweet) []*Tweet {
+	var startIdx int
 	if index := findTweetIndex(tweets, oldLatestTweetIds.GetLatestTweetId()); index >= 0 {
-		var startIndex int
-		if tweets[startIndex].Pinned {
-			if !oldLatestTweetIds.ExistTweetId(tweets[0].ID) || tweets[0].ID != oldLatestTweetIds.GetPinnedTweet() {
-				oldLatestTweetIds.SetPinnedTweet(tweets[0].ID)
-				startIndex = 0
-			} else {
-				startIndex++
-				if index == 0 {
-					index++
-				}
-			}
+		if index < 2 && tweets[0].Pinned {
+			return delRepeatedTweet(oldLatestTweetIds, tweets)
 		}
-		return delRepeatedTweet(oldLatestTweetIds, tweets[startIndex:index])
+		if tweets[0].Pinned && tweets[0].ID == oldLatestTweetIds.GetPinnedTweet() {
+			startIdx++
+		}
+		return tweets[startIdx:index]
 	}
-	var retTweets []*Tweet
-	for _, tweet := range tweets {
-		oldTime, err := ParseSnowflakeTimestamp(oldLatestTweetIds.GetLatestTweetId())
-		if err != nil {
-			logger.WithError(err).Errorf("ParseSnowflakeTimestamp error")
-			continue
-		}
-		if tweet.CreatedAt.After(oldTime) && tweet.CreatedAt.After(time.Unix(latestFreshTime, 0)) {
-			retTweets = append(retTweets, tweet)
-		}
-	}
-	if len(retTweets) == 0 {
-		oldTweetList, _ := t.GetTweetIdList(userId)
-		n := checkList(oldTweetList, tweets)
-		if n == -1 {
-			if len(tweets) > 1 {
-				oneTime, err := ParseSnowflakeTimestamp(tweets[0].ID)
-				if err != nil {
-					logger.WithError(err).Errorf("ParseSnowflakeTimestamp error")
-					return nil
-				}
-				SecTime, err := ParseSnowflakeTimestamp(tweets[1].ID)
-				if err != nil {
-					logger.WithError(err).Errorf("ParseSnowflakeTimestamp error")
-					return nil
-				}
-				if oneTime.Before(SecTime) && tweets[0].Pinned {
-					retTweets = append(retTweets, tweets[1])
-				} else {
-					retTweets = append(retTweets, tweets[0])
-				}
-			} else {
-				retTweets = append(retTweets, tweets[0])
-			}
-		}
-	}
-	return retTweets
+	return delRepeatedTweet(oldLatestTweetIds, tweets)
 }
 
 func delRepeatedTweet(tweetIds *LatestTweetIds, tweetsSlice []*Tweet) []*Tweet {
 	var retTweets []*Tweet
 	for i := 0; i < len(tweetsSlice); i++ {
-		exist := tweetIds.ExistTweetId(tweetsSlice[i].ID)
-		if exist {
-			for _, tweet := range tweetsSlice {
-				if tweet.ID == tweetsSlice[i].ID {
-					continue
-				}
-				retTweets = append(retTweets, tweet)
-			}
+		po := tweetIds.HasTweetId(tweetsSlice[i].ID)
+		if tweetsSlice[i].ID == tweetIds.GetPinnedTweet() {
+			continue
 		}
+		if po != -1 {
+			break
+		}
+		retTweets = append(retTweets, tweetsSlice[i])
 	}
 	return retTweets
 }

@@ -168,8 +168,8 @@ func TwitterUserInfoKey(keys ...interface{}) string {
 	return NamedKey("TwitterUserInfo", keys)
 }
 func TwitterTweetListKey(keys ...interface{}) string { return NamedKey("TwitterTweetList", keys) }
-func TwitterNewsInfoKey(keys ...interface{}) string {
-	return NamedKey("TwitterNewsInfo", keys)
+func LatestTweetIdsKey(keys ...interface{}) string {
+	return NamedKey("TwitterLatestTweetIds", keys)
 }
 func TwitterLastFreshKey(keys ...interface{}) string {
 	return NamedKey("TwitterLastFresh", keys)
