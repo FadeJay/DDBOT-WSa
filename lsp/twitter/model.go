@@ -2,7 +2,6 @@ package twitter
 
 import (
 	"github.com/cnxysoft/DDBOT-WSa/lsp/concern_type"
-	"github.com/mmcdole/gofeed"
 	"github.com/sirupsen/logrus"
 	"strconv"
 	"strings"
@@ -13,8 +12,7 @@ import (
 
 type NewsInfo struct {
 	*UserInfo
-	Tweet         *Tweet
-	LatestTweetId string
+	Tweet *Tweet
 }
 
 func (e *NewsInfo) Site() string {
@@ -38,13 +36,62 @@ func (e *NewsInfo) Logger() *logrus.Entry {
 	})
 }
 
-func (e *NewsInfo) GetLatestTweetTs() time.Time {
-	ts, err := ParseSnowflakeTimestamp(e.LatestTweetId)
-	if err != nil {
-		e.Logger().WithError(err).Error("ParseSnowflakeTimestamp")
-		return time.Time{}
+type LatestTweetIds struct {
+	TweetId  []string
+	PinnedId string
+}
+
+func (l *LatestTweetIds) GetLatestTweetTs() *time.Time {
+	if len(l.TweetId) == 0 {
+		return nil
 	}
-	return ts
+	ts, err := ParseSnowflakeTimestamp(l.TweetId[0])
+	if err != nil {
+		logger.WithError(err).Error("ParseSnowflakeTimestamp")
+		return &time.Time{}
+	}
+	return &ts
+}
+
+func (l *LatestTweetIds) GetLatestTweetId() string {
+	if len(l.TweetId) == 0 {
+		return ""
+	}
+	return l.TweetId[len(l.TweetId)-1]
+}
+
+func (l *LatestTweetIds) SetLatestTweetId(tweetId string) {
+	if l.ExistTweetId(tweetId) {
+		return
+	}
+	maxIds := 20
+	if len(l.TweetId) < maxIds {
+		l.TweetId = append(l.TweetId, tweetId)
+	} else if len(l.TweetId) >= maxIds {
+		l.TweetId = l.TweetId[:len(l.TweetId)-1]
+	}
+}
+
+func (l *LatestTweetIds) ExistTweetId(tweetId string) bool {
+	for _, TweetId := range l.TweetId {
+		if TweetId == tweetId {
+			return true
+		}
+	}
+	return false
+}
+
+func (l *LatestTweetIds) SetPinnedTweet(tweetId string) bool {
+	if tweetId == "" {
+		logger.Debug("SetPinnedTweet failed: Empty tweetId")
+		return false
+	}
+	l.PinnedId = tweetId
+	return true
+}
+
+func (l *LatestTweetIds) GetPinnedTweet() string {
+	return l.PinnedId
 }
 
 type UserInfo struct {
@@ -58,16 +105,6 @@ func (u *UserInfo) GetUid() interface{} {
 
 func (u *UserInfo) GetName() string {
 	return u.Name
-}
-
-func GetShortName(feed *gofeed.Feed) string {
-	//if strings.HasPrefix(feed.Title, "twitter ") {
-	//	return strings.Split(feed.Title, " ")[1]
-	//}
-	if idx := strings.LastIndex(feed.Title, "/ @"); idx != -1 {
-		return strings.TrimSpace(feed.Title[:idx])
-	}
-	return feed.Title
 }
 
 const (

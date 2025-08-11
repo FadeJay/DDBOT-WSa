@@ -39,6 +39,7 @@ const (
 	//BaseURL = "https://lightbrd.com/"
 	//alt1BaseURL = "https://nitter.privacydev.net/%s/rss"
 	//TweetAPI = "https://cdn.syndication.twimg.com/tweet-result?id=%s&token=%s"
+	ErrNotFound = "not found"
 )
 
 var (
@@ -163,17 +164,12 @@ func (t *twitterConcern) AddUserInfo(info *UserInfo) error {
 	return t.SetJson(t.UserInfoKey(info.Id), info)
 }
 
-func (t *twitterConcern) AddNewsInfo(info *NewsInfo) error {
-	if info == nil {
-		return errors.New("<nil NewsInfo>")
+func (t *twitterConcern) SetLatestTweetIds(userId string, tweetIds *LatestTweetIds) error {
+	if tweetIds == nil {
+		return errors.New("<nil LatestTweetIds>")
 	}
 	return t.RWCover(func() error {
-		var err error
-		err = t.SetJson(t.UserInfoKey(info.UserInfo.Id), info.UserInfo)
-		if err != nil {
-			return err
-		}
-		return t.SetJson(t.NewsInfoKey(info.UserInfo.Id), info)
+		return t.SetJson(t.LatestTweetIdsKey(userId), tweetIds)
 	})
 }
 
@@ -184,12 +180,6 @@ func (t *twitterConcern) Add(ctx mmsg.IMsgCtx, groupCode int64, id interface{}, 
 	info, err := t.FindOrLoadUserInfo(id.(string))
 	if err != nil {
 		return nil, fmt.Errorf("查询用户信息失败 %v - %v", id, err)
-	}
-	err = t.AddNewsInfo(&NewsInfo{
-		UserInfo: info,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("添加订阅失败 - 内部错误 - %v", err)
 	}
 	_, err = t.GetStateManager().AddGroupConcern(groupCode, id, ctype)
 	if err != nil {
@@ -203,8 +193,8 @@ func (t *twitterConcern) Add(ctx mmsg.IMsgCtx, groupCode int64, id interface{}, 
 	return info, nil
 }
 
-func (t *twitterConcern) removeNewsInfo(id string) error {
-	_, err := t.Delete(t.NewsInfoKey(id), buntdb.IgnoreNotFoundOpt())
+func (t *twitterConcern) removeLatestTweetIds(id string) error {
+	_, err := t.Delete(t.LatestTweetIdsKey(id), buntdb.IgnoreNotFoundOpt())
 	return err
 }
 
@@ -232,9 +222,9 @@ func (t *twitterConcern) Remove(ctx mmsg.IMsgCtx, groupCode int64, id interface{
 		return nil, err
 	}
 
-	if err = t.removeNewsInfo(id.(string)); err != nil {
+	if err = t.removeLatestTweetIds(id.(string)); err != nil {
 		if err != errors.New("not found") {
-			logger.WithError(err).Errorf("removeNewsInfo error")
+			logger.WithError(err).Errorf("remove LatestTweetIds error")
 		} else {
 			err = nil
 		}
@@ -242,7 +232,7 @@ func (t *twitterConcern) Remove(ctx mmsg.IMsgCtx, groupCode int64, id interface{
 
 	if err = t.removeUserInfo(id.(string)); err != nil {
 		if err != errors.New("not found") {
-			logger.WithError(err).Errorf("removeUserInfo error")
+			logger.WithError(err).Errorf("remove UserInfo error")
 		} else {
 			err = nil
 		}
@@ -250,7 +240,7 @@ func (t *twitterConcern) Remove(ctx mmsg.IMsgCtx, groupCode int64, id interface{
 
 	if err = t.removeFreshTime(id.(string)); err != nil {
 		if err != errors.New("not found") {
-			logger.WithError(err).Errorf("removeFreshTime error")
+			logger.WithError(err).Errorf("remove FreshTime error")
 		} else {
 			err = nil
 		}
@@ -258,7 +248,7 @@ func (t *twitterConcern) Remove(ctx mmsg.IMsgCtx, groupCode int64, id interface{
 
 	if err = t.removeTweetList(id.(string)); err != nil {
 		if err != errors.New("not found") {
-			logger.WithError(err).Errorf("removeTweetList error")
+			logger.WithError(err).Errorf("remove TweetList error")
 		} else {
 			err = nil
 		}
@@ -370,7 +360,6 @@ func (t *twitterConcern) freshNewsInfo(ctype concern_type.Type, id interface{}) 
 	userId := id.(string)
 	if ctype.ContainAll(Tweets) {
 		userInfo, err := t.FindOrLoadUserInfo(userId)
-		newsInfo := &NewsInfo{UserInfo: userInfo}
 		if err != nil {
 			logger.Errorf("查找用户信息失败：%v", err)
 		}
@@ -378,34 +367,38 @@ func (t *twitterConcern) freshNewsInfo(ctype concern_type.Type, id interface{}) 
 		if err != nil {
 			return nil, err
 		}
-		oldNewsInfo, err := t.GetNewsInfo(userId)
-		if err != nil {
+		oldTweetIds, err := t.GetLatestTweetIds(userId)
+		if err != nil && err.Error() != ErrNotFound {
+			logger.WithError(err).Errorf("内部错误 - 已推送推文列表获取失败：%v", err)
 			return nil, err
 		}
-		LatestNewsTs, _ := t.GetLastFreshTime(userId)
-		newLastTweetId, err := t.getLastTweetId(newTweets)
+		latestFreshTime, err := t.GetLastFreshTime(userId)
+		if err != nil && err.Error() != ErrNotFound {
+			logger.WithError(err).Errorf("内部错误 - 最后刷新时间获取失败：%v", err)
+			return nil, err
+		}
+		newLastTweetId, err := getLastTweetId(newTweets)
 		if err != nil {
 			return nil, err
 		}
 		if len(newTweets) > 0 && newLastTweetId != "" {
-			newsInfo.LatestTweetId = newLastTweetId
-			if oldNewsInfo == nil || (newsInfo.LatestTweetId != oldNewsInfo.LatestTweetId) {
-				if oldNewsInfo == nil || oldNewsInfo.LatestTweetId == "" {
-					oldNewsInfo = &NewsInfo{
-						UserInfo:      userInfo,
-						LatestTweetId: newsInfo.LatestTweetId,
-					}
+			if oldTweetIds == nil || (newLastTweetId != oldTweetIds.TweetId[0]) {
+				if oldTweetIds == nil {
+					oldTweetIds = new(LatestTweetIds)
+					oldTweetIds.SetLatestTweetId(newLastTweetId)
 					err = t.SetLastFreshTime(userId, time.Now().UTC())
 					if err != nil {
+						logger.Errorf("内部错误 - 最后刷新时间更新失败：%v", err)
 						return nil, err
 					}
 					err = t.SetTweetIdList(userId, GetIdList(newTweets))
 					if err != nil {
+						logger.Errorf("内部错误 - 设置推文列表失败：%v", err)
 						return nil, err
 					}
 				}
 				// 获取超过最后推送时间的tweet
-				NewTweets := t.GetNewTweetsFromTweetId(oldNewsInfo, newTweets, LatestNewsTs)
+				NewTweets := t.GetNewTweetsFromTweetId(oldTweetIds, newTweets, userId, latestFreshTime)
 				if len(NewTweets) > 0 {
 					t.reverseTweets(NewTweets)
 					// 将新的tweet添加到result中
@@ -420,21 +413,17 @@ func (t *twitterConcern) freshNewsInfo(ctype concern_type.Type, id interface{}) 
 					if err != nil {
 						logger.Errorf("内部错误 - 推文列表更新失败：%v", err)
 					}
-					err = t.SetLastFreshTime(userId, time.Now().UTC())
-					if err != nil {
-						logger.Errorf("内部错误 - 推送时间更新失败：%v", err)
-					}
 				} else {
-					newsInfo.LatestTweetId = oldNewsInfo.LatestTweetId
+					newLastTweetId = oldTweetIds.GetLatestTweetId()
 				}
 			}
 		} else {
-			if oldNewsInfo != nil && oldNewsInfo.LatestTweetId != "" {
-				newsInfo.LatestTweetId = oldNewsInfo.LatestTweetId
+			if oldTweetIds != nil && oldTweetIds.GetLatestTweetId() != "" {
+				newLastTweetId = oldTweetIds.GetLatestTweetId()
 			}
 		}
-		if newsInfo.LatestTweetId != "" {
-			err = t.AddNewsInfo(newsInfo)
+		if oldTweetIds != nil && newLastTweetId != "" {
+			err = t.SetLatestTweetIds(userId, oldTweetIds)
 			if err != nil {
 				logger.Errorf("内部错误 - 推送信息更新失败：%v", err)
 				return nil, err
@@ -444,7 +433,7 @@ func (t *twitterConcern) freshNewsInfo(ctype concern_type.Type, id interface{}) 
 	return result, nil
 }
 
-func (t *twitterConcern) getLastTweetId(tweets []*Tweet) (string, error) {
+func getLastTweetId(tweets []*Tweet) (string, error) {
 	for i, tweet := range tweets {
 		if tweet.Pinned && len(tweets) > 1 {
 			OneTweetStamp, err := ParseSnowflakeTimestamp(tweet.ID)
@@ -589,16 +578,13 @@ func (t *twitterConcern) reverseTweets(s []*Tweet) {
 	}
 }
 
-func (t *twitterConcern) GetNewTweetsFromTweetId(oldNewsInfo *NewsInfo, tweets []*Tweet, LatestNewsTs int64) []*Tweet {
-	if index := findTweetIndex(tweets, oldNewsInfo.LatestTweetId); index >= 0 {
+func (t *twitterConcern) GetNewTweetsFromTweetId(
+	oldLatestTweetIds *LatestTweetIds, tweets []*Tweet, userId string, latestFreshTime int64) []*Tweet {
+	if index := findTweetIndex(tweets, oldLatestTweetIds.GetLatestTweetId()); index >= 0 {
 		var startIndex int
 		if tweets[startIndex].Pinned {
-			oldTime, err := ParseSnowflakeTimestamp(oldNewsInfo.LatestTweetId)
-			if err != nil {
-				logger.WithError(err).Errorf("ParseSnowflakeTimestamp error")
-				return nil
-			}
-			if index == 1 && tweets[0].CreatedAt.After(oldTime) {
+			if !oldLatestTweetIds.ExistTweetId(tweets[0].ID) || tweets[0].ID != oldLatestTweetIds.GetPinnedTweet() {
+				oldLatestTweetIds.SetPinnedTweet(tweets[0].ID)
 				startIndex = 0
 			} else {
 				startIndex++
@@ -607,21 +593,21 @@ func (t *twitterConcern) GetNewTweetsFromTweetId(oldNewsInfo *NewsInfo, tweets [
 				}
 			}
 		}
-		return tweets[startIndex:index]
+		return delRepeatedTweet(oldLatestTweetIds, tweets[startIndex:index])
 	}
 	var retTweets []*Tweet
 	for _, tweet := range tweets {
-		oldTime, err := ParseSnowflakeTimestamp(oldNewsInfo.LatestTweetId)
+		oldTime, err := ParseSnowflakeTimestamp(oldLatestTweetIds.GetLatestTweetId())
 		if err != nil {
 			logger.WithError(err).Errorf("ParseSnowflakeTimestamp error")
 			continue
 		}
-		if tweet.CreatedAt.After(oldTime) && tweet.CreatedAt.After(time.Unix(LatestNewsTs, 0)) {
+		if tweet.CreatedAt.After(oldTime) && tweet.CreatedAt.After(time.Unix(latestFreshTime, 0)) {
 			retTweets = append(retTweets, tweet)
 		}
 	}
 	if len(retTweets) == 0 {
-		oldTweetList, _ := t.GetTweetIdList(oldNewsInfo.UserInfo.Id)
+		oldTweetList, _ := t.GetTweetIdList(userId)
 		n := checkList(oldTweetList, tweets)
 		if n == -1 {
 			if len(tweets) > 1 {
@@ -642,6 +628,22 @@ func (t *twitterConcern) GetNewTweetsFromTweetId(oldNewsInfo *NewsInfo, tweets [
 				}
 			} else {
 				retTweets = append(retTweets, tweets[0])
+			}
+		}
+	}
+	return retTweets
+}
+
+func delRepeatedTweet(tweetIds *LatestTweetIds, tweetsSlice []*Tweet) []*Tweet {
+	var retTweets []*Tweet
+	for i := 0; i < len(tweetsSlice); i++ {
+		exist := tweetIds.ExistTweetId(tweetsSlice[i].ID)
+		if exist {
+			for _, tweet := range tweetsSlice {
+				if tweet.ID == tweetsSlice[i].ID {
+					continue
+				}
+				retTweets = append(retTweets, tweet)
 			}
 		}
 	}
@@ -680,13 +682,13 @@ func (t *twitterConcern) GetLatestNewsTs(tweets []*TweetItem) time.Time {
 	return tweets[len(tweets)-1].Published
 }
 
-func (t *twitterConcern) GetNewsInfo(id string) (*NewsInfo, error) {
-	var newsInfo *NewsInfo
-	err := t.GetJson(t.NewsInfoKey(id), &newsInfo)
+func (t *twitterConcern) GetLatestTweetIds(id string) (*LatestTweetIds, error) {
+	var Ids *LatestTweetIds
+	err := t.GetJson(t.LatestTweetIdsKey(id), &Ids)
 	if err != nil {
 		return nil, err
 	}
-	return newsInfo, nil
+	return Ids, nil
 }
 
 func (t *twitterConcern) Start() error {
