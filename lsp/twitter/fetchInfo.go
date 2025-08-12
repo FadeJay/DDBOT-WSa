@@ -2,25 +2,19 @@ package twitter
 
 import (
 	"bytes"
-	"compress/gzip"
-	"compress/zlib"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
-	"github.com/andybalholm/brotli"
 	"github.com/cnxysoft/DDBOT-WSa/proxy_pool"
 	"github.com/cnxysoft/DDBOT-WSa/requests"
-	"io"
 	"math/rand"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/klauspost/compress/zstd"
 )
 
 type UserProfile struct {
@@ -384,38 +378,6 @@ func ParseResp(htmlContent []byte, Url string) (*UserProfile, []*Tweet, *AnubisR
 		tweets = append(tweets, &tweet)
 	})
 	return &profile, tweets, nil, nil
-}
-
-// 解压HTTP数据
-func decompressGzip(data []byte) ([]byte, error) {
-	var b bytes.Buffer
-	r, _ := gzip.NewReader(bytes.NewReader(data))
-	_, _ = io.Copy(&b, r)
-	r.Close()
-	return b.Bytes(), nil
-}
-
-func decompressDeflate(data []byte) ([]byte, error) {
-	reader, err := zlib.NewReader(bytes.NewReader(data))
-	if err != nil {
-		return nil, err
-	}
-	defer reader.Close()
-	return io.ReadAll(reader)
-}
-
-func decompressBrotli(data []byte) ([]byte, error) {
-	reader := brotli.NewReader(bytes.NewReader(data))
-	return io.ReadAll(reader)
-}
-
-func decompressZstd(data []byte) ([]byte, error) {
-	dctx, err := zstd.NewReader(bytes.NewReader(data))
-	if err != nil {
-		return nil, err
-	}
-	defer dctx.Close()
-	return io.ReadAll(dctx)
 }
 
 // 计算工作量证明（支持两种算法）
