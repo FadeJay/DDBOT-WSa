@@ -174,6 +174,15 @@ func LatestTweetIdsKey(keys ...interface{}) string {
 func TwitterLastFreshKey(keys ...interface{}) string {
 	return NamedKey("TwitterLastFresh", keys)
 }
+func DouyinUserInfoKey(keys ...interface{}) string {
+	return NamedKey("DouyinUserInfo", keys)
+}
+func DouyinFreshKey(keys ...interface{}) string {
+	return NamedKey("DouyinFresh", keys)
+}
+func DouyinCurrentLiveKey(keys ...interface{}) string {
+	return NamedKey("DouyinCurrentLive", keys)
+}
 
 func PermissionKey(keys ...interface{}) string {
 	return NamedKey("Permission", keys)

@@ -112,7 +112,7 @@ retry:
 		}
 
 		// 解压缩HTML
-		body, err := HtmlDecoder(respHeaders, resp)
+		body, err := utils.HtmlDecoder(respHeaders.ContentEncoding, resp)
 		if err != nil {
 			logger.WithField("Mirror", Url.Hostname()).
 				WithField("User", id).Errorf("解压缩HTML失败：%v", err)
@@ -517,28 +517,6 @@ func SetRequestOptions() []requests.Option {
 	}
 }
 
-func HtmlDecoder(respHeaders requests.RespHeader, resp bytes.Buffer) ([]byte, error) {
-	var body []byte
-	if encoding := respHeaders.ContentEncoding; encoding != "" {
-		body = resp.Bytes()
-		switch encoding {
-		case "gzip":
-			body, _ = decompressGzip(body)
-		case "deflate":
-			body, _ = decompressDeflate(body)
-		case "br":
-			body, _ = decompressBrotli(body)
-		case "zstd":
-			body, _ = decompressZstd(body)
-		default:
-			logger.Warnf("不支持的压缩格式: %s", encoding)
-		}
-	} else {
-		body = resp.Bytes()
-	}
-	return body, nil
-}
-
 func (t *twitterConcern) GetTweets(id string) ([]*Tweet, error) {
 retry:
 	Url := buildProfileURL(id)
@@ -551,7 +529,7 @@ retry:
 	}
 
 	// 解压缩HTML
-	body, err := HtmlDecoder(respHeaders, resp)
+	body, err := utils.HtmlDecoder(respHeaders.ContentEncoding, resp)
 	if err != nil {
 		logger.WithField("Mirror", Url.Hostname()).
 			WithField("userId", id).Errorf("解压缩HTML失败：%v", err)
