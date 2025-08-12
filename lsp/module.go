@@ -715,6 +715,7 @@ func (l *Lsp) Serve(bot *bot.Bot) {
 		data := map[string]interface{}{
 			"template_name": templateName,
 		}
+		logger.Debug("BOT已离线，尝试触发提醒模板")
 		_, _ = template.LoadAndExec(templateName, data)
 	})
 
@@ -727,6 +728,17 @@ func (l *Lsp) Serve(bot *bot.Bot) {
 			"target_type":   event.TargetType,
 			"times":         event.Times,
 		}
+		switch event.TargetType {
+		case 0:
+			if gi := localutils.GetBot().FindGroup(event.TargetUin); gi != nil {
+				data["group_name"] = gi.Name
+			}
+		case 1:
+			if fi := localutils.GetBot().FindFriend(event.TargetUin); fi != nil {
+				data["member_name"] = fi.Nickname
+			}
+		}
+		logger.Debug("消息多次发送失败，尝试触发提醒模板")
 		_, _ = template.LoadAndExec(templateName, data)
 	})
 
