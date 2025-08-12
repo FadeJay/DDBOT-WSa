@@ -1,6 +1,7 @@
 package weibo
 
 import (
+	"html"
 	"strings"
 	"sync"
 	"time"
@@ -129,18 +130,22 @@ func (c *CacheCard) prepare() {
 	switch c.Card.GetCardType() {
 	case CardType_Normal:
 		if len(c.Card.GetMblog().GetRawText()) > 0 {
-			m.Textf("\n%v", localutils.RemoveHtmlTag(c.Card.GetMblog().GetRawText()))
+			rawText := parseHTML(c.Card.GetMblog().GetRawText())
+			m.Textf("\n%v", localutils.RemoveHtmlTag(rawText))
 		} else {
-			m.Textf("\n%v", localutils.RemoveHtmlTag(c.Card.GetMblog().GetText()))
+			Text := parseHTML(c.Card.GetMblog().GetText())
+			m.Textf("\n%v", localutils.RemoveHtmlTag(Text))
 		}
 		for _, pic := range c.Card.GetMblog().GetPics() {
 			m.ImageByUrl(pic.GetLarge().GetUrl(), "")
 		}
 		if c.Card.GetMblog().GetRetweetedStatus() != nil {
 			if len(c.Card.GetMblog().GetRetweetedStatus().GetRawText()) > 0 {
-				m.Textf("\n\n原微博：\n%v", localutils.RemoveHtmlTag(c.Card.GetMblog().GetRetweetedStatus().GetRawText()))
+				rawText := parseHTML(c.Card.GetMblog().GetRetweetedStatus().GetRawText())
+				m.Textf("\n\n原微博：\n%v", localutils.RemoveHtmlTag(rawText))
 			} else {
-				m.Textf("\n\n原微博：\n%v", localutils.RemoveHtmlTag(c.Card.GetMblog().GetRetweetedStatus().GetText()))
+				Text := parseHTML(c.Card.GetMblog().GetRetweetedStatus().GetText())
+				m.Textf("\n\n原微博：\n%v", localutils.RemoveHtmlTag(Text))
 			}
 			for _, pic := range c.Card.GetMblog().GetRetweetedStatus().GetPics() {
 				m.ImageByUrl(pic.GetLarge().GetUrl(), "")
@@ -160,4 +165,10 @@ func (c *CacheCard) prepare() {
 func (c *CacheCard) GetMSG() *mmsg.MSG {
 	c.once.Do(c.prepare)
 	return c.msgCache
+}
+
+func parseHTML(text string) string {
+	text = strings.ReplaceAll(text, "<br />", "\n")
+	text = html.UnescapeString(text)
+	return text
 }

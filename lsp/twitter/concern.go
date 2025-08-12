@@ -378,7 +378,7 @@ func (t *twitterConcern) freshNewsInfo(ctype concern_type.Type, id interface{}) 
 		//	logger.WithError(err).Errorf("内部错误 - 最后刷新时间获取失败：%v", err)
 		//	return nil, err
 		//}
-		newLastTweetId, err := oldTweetIds.getNewLatestTweetId(newTweets)
+		newLastTweetId, err := getNewLatestTweetId(oldTweetIds, newTweets)
 		if err != nil {
 			logger.WithError(err).Errorf("内部错误 - 获取最新推文失败：%v", err)
 			return nil, err
@@ -444,7 +444,7 @@ func (t *twitterConcern) freshNewsInfo(ctype concern_type.Type, id interface{}) 
 	return result, nil
 }
 
-func (l *LatestTweetIds) getNewLatestTweetId(tweets []*Tweet) (string, error) {
+func getNewLatestTweetId(l *LatestTweetIds, tweets []*Tweet) (string, error) {
 	for i, tweet := range tweets {
 		if tweet.Pinned && len(tweets) > 1 {
 			if l.HasTweetId(tweet.ID) != -1 && tweet.ID != l.GetPinnedTweet() {
@@ -609,15 +609,6 @@ func delRepeatedTweet(tweetIds *LatestTweetIds, tweetsSlice []*Tweet) []*Tweet {
 		retTweets = append(retTweets, tweetsSlice[i])
 	}
 	return retTweets
-}
-
-func checkList(o []string, n []*Tweet) int {
-	for i, oid := range o {
-		if n[0].ID == oid {
-			return i
-		}
-	}
-	return -1
 }
 
 func findTweetIndex(tweets []*Tweet, targetID string) int {
