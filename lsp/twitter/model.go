@@ -101,7 +101,7 @@ func (l *LatestTweetIds) HasTweetId(tweetId string) int {
 }
 
 func (l *LatestTweetIds) SetPinnedTweet(tweetId string) bool {
-	if tweetId == "" {
+	if l == nil || tweetId == "" {
 		logger.Debug("SetPinnedTweet failed: Empty tweetId")
 		return false
 	}

@@ -373,18 +373,9 @@ func (t *twitterConcern) freshNewsInfo(ctype concern_type.Type, id interface{}) 
 			logger.WithError(err).Errorf("内部错误 - 已推送推文列表获取失败：%v", err)
 			return nil, err
 		}
-		//latestFreshTime, err := t.GetLastFreshTime(userId)
-		//if err != nil && err.Error() != ErrNotFound {
-		//	logger.WithError(err).Errorf("内部错误 - 最后刷新时间获取失败：%v", err)
-		//	return nil, err
-		//}
-		newLastTweetId, err := getNewLatestTweetId(oldTweetIds, newTweets)
-		if err != nil {
-			logger.WithError(err).Errorf("内部错误 - 获取最新推文失败：%v", err)
-			return nil, err
-		}
+		newLastTweetId := getNewLatestTweetId(oldTweetIds, newTweets)
 		if len(newTweets) > 0 && newLastTweetId != "" {
-			if oldTweetIds == nil || (newLastTweetId != oldTweetIds.TweetId[0]) {
+			if oldTweetIds == nil || (newLastTweetId != oldTweetIds.GetLatestTweetId()) {
 				if oldTweetIds == nil {
 					oldTweetIds = new(LatestTweetIds)
 					tweets := slices.Clone(newTweets)
@@ -444,19 +435,31 @@ func (t *twitterConcern) freshNewsInfo(ctype concern_type.Type, id interface{}) 
 	return result, nil
 }
 
-func getNewLatestTweetId(l *LatestTweetIds, tweets []*Tweet) (string, error) {
-	for i, tweet := range tweets {
-		if tweet.Pinned && len(tweets) > 1 {
-			if l.HasTweetId(tweet.ID) != -1 && tweet.ID != l.GetPinnedTweet() {
-				return tweet.ID, nil
-			} else {
-				return tweets[i+1].ID, nil
-			}
-		} else {
-			return tweet.ID, nil
+func getTargetTweet(tweets []*Tweet, targetId string) *Tweet {
+	for _, tweet := range tweets {
+		if tweet.ID == targetId {
+			return tweet
 		}
 	}
-	return "", errors.New("推文列表为空。")
+	return nil
+}
+
+func getNewLatestTweetId(l *LatestTweetIds, tweets []*Tweet) string {
+	for i, tweet := range tweets {
+		if tweet.IsPinned() && len(tweets) > 1 {
+			if l.HasTweetId(tweet.ID) == -1 && tweet.ID != l.GetPinnedTweet() {
+				return tweet.ID
+			} else if tweet.IsPinned() && tweet.ID != l.GetPinnedTweet() {
+				l.SetPinnedTweet(tweet.ID)
+				return tweet.ID
+			} else {
+				return tweets[i+1].ID
+			}
+		} else {
+			return tweet.ID
+		}
+	}
+	return ""
 }
 
 func (t *twitterConcern) SetLastFreshTime(id string, ts time.Time) error {

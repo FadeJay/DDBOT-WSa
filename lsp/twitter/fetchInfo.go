@@ -88,6 +88,14 @@ func (t *Tweet) RtType() int {
 	}
 }
 
+func (t *Tweet) IsPinned() bool {
+	if t.Pinned {
+		return true
+	} else {
+		return false
+	}
+}
+
 func GetIdList(tweets []*Tweet) []string {
 	var idList []string
 	for t := range tweets {
@@ -375,6 +383,13 @@ func ParseResp(htmlContent []byte, Url string) (*UserProfile, []*Tweet, *AnubisR
 			})
 			tweet.QuoteTweet = QuoteTweet
 		})
+		if tweet.QuoteTweet != nil && tweet.OrgUser == nil {
+			tweet.OrgUser = &UserProfile{
+				Name:       profile.Name,
+				ScreenName: profile.ScreenName,
+				Website:    profile.Website,
+			}
+		}
 		tweets = append(tweets, &tweet)
 	})
 	return &profile, tweets, nil, nil
