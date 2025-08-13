@@ -165,12 +165,20 @@ bilibili:
 # 填入你访问网站时提交的user_agent，可在浏览器中查看
 # 填入你访问网站后得到的cf_clearance，可在浏览器中查看
 twitter:
-  baseurl:
+  baseUrl:
     - "https://nitter.net/"
     - "https://nitter.privacyredirect.com/"
     - "https://nitter.tiekoetter.com/"
   interval: 300s # 查询间隔，过快可能导致ip被暂时封禁
-  useragent:
+  userAgent: 
+
+# 抖音直播推送（测试）
+# 需要手动访问www.douyin.com并填入__ac_signature和__ac_nonce两个cookies和你的浏览器UA
+douyin:
+  interval: 30s
+  userAgent: 
+  acSignature: 
+  acNonce: 
 
 concern:
   emitInterval: 5s

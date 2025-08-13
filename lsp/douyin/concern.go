@@ -324,27 +324,29 @@ func (d *Concern) freshLiveInfo(ctype concern_type.Type, id interface{}) ([]conc
 			if err != nil && err.Error() != ErrNotFound {
 				return nil, err
 			}
-			if usrInfo.WebRoomId != newUserInfo.WebRoomId && newUserInfo.WebRoomId != "" {
-				usrInfo.WebRoomId = newUserInfo.WebRoomId
-			}
-			if oldIsLive != isLive && (time.Now().Sub(time.Unix(oldFreshTime, 0)) < 30*time.Minute || oldFreshTime == 0) {
+			if oldIsLive != isLive {
 				err = d.SetCurrentLive(userId, isLive)
 				if err != nil {
 					logger.Errorf("内部错误 - 推送状态更新失败：%v", err)
 					return nil, err
 				}
-				live := &LiveInfo{
-					UserInfo: *usrInfo,
-					IsLiving: isLive,
+				if time.Now().Sub(time.Unix(oldFreshTime, 0)) < 30*time.Minute || oldFreshTime == 0 {
+					live := &LiveInfo{
+						UserInfo: *usrInfo,
+						IsLiving: isLive,
+					}
+					result = append(result, live)
 				}
-				result = append(result, live)
 			}
 			err = d.SetFreshTime(userId, time.Now())
 			if err != nil {
 				logger.Errorf("内部错误 - 刷新时间更新失败：%v", err)
 				return nil, err
 			}
-			err = d.AddUserInfo(usrInfo)
+			if !isLive && usrInfo.WebRoomId != "" {
+				newUserInfo.WebRoomId = usrInfo.WebRoomId
+			}
+			err = d.AddUserInfo(newUserInfo)
 			if err != nil {
 				logger.Errorf("内部错误 - 用户信息更新失败：%v", err)
 				return nil, err
@@ -396,6 +398,10 @@ func SetRequestOptions() []requests.Option {
 func (d *Concern) Start() error {
 	// 以用户设置覆盖默认设置
 	setCookies()
+	if Stop {
+		logger.Warn("抖音Cookie未设置，将关闭抖音推送功能。")
+		return nil
+	}
 	// 如果需要启用轮询器，可以使用下面的方法
 	//d.UseEmitQueue()
 	// 下面两个函数是订阅的关键，需要实现，请阅读文档
