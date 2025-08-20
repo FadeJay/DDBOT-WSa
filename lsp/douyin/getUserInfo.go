@@ -295,7 +295,7 @@ func ParseUserInfoResp(body []byte) (*UserInfo, error) {
 
 		// 处理内层字符串数据
 		innerStr, ok := outerArr[1].(string)
-		if !ok || len(innerStr) < 3 || !strings.HasPrefix(innerStr, "8:") {
+		if !ok || len(innerStr) < 3 || (len(innerStr) > 1 && !strings.HasPrefix(innerStr[1:], ":[\"")) {
 			return
 		}
 
