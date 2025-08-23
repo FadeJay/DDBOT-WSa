@@ -1141,12 +1141,14 @@ func (c *QQClient) handleMetaEvent(wsmsg WebSocketMessage) {
 	case "heartbeat":
 		c.Online.Store(wsmsg.Status.Online)
 		c.alive = wsmsg.Status.Good
-		if !wsmsg.Status.Online {
-			c.BotOfflineEvent.dispatch(c, &BotOfflineEvent{})
-		}
 	default:
 		logger.Warnf("未知 元事件 类型: %s", wsmsg.MetaEventType)
 	}
+}
+
+func (c *QQClient) handleBotOfflineNotice(_ WebSocketMessage) (bool, error) {
+	c.BotOfflineEvent.dispatch(c, &BotOfflineEvent{})
+	return false, nil
 }
 
 func (c *QQClient) getBotVer() BotVer {
@@ -1284,6 +1286,7 @@ func (c *QQClient) handleNoticeEvent(wsmsg WebSocketMessage) {
 		"group_recall":   c.handleGroupRecallNotice,
 		"essence":        c.handleGroupEssence,
 		"group_upload":   c.handleGroupUploadNotice,
+		"bot_offline":    c.handleBotOfflineNotice,
 	}
 	needSync := false
 	var err error
@@ -2913,6 +2916,7 @@ func (c *QQClient) handleSendFailed(add bool, msg string, targetType int, target
 	if add {
 		c.retryTimes++
 		if c.retryTimes == config.GlobalConfig.GetInt("sendFailureReminder.times") {
+			logger.Warnf("发送消息失败，已尝试 %d 次，触发BotSendFailedEvent事件", c.retryTimes)
 			c.BotSendFailedEvent.dispatch(c, &BotSendFailedEvent{
 				msg,
 				targetId,

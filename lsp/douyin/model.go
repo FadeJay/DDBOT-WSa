@@ -26,6 +26,14 @@ func (u UserInfo) GetName() string {
 	return u.NikeName
 }
 
+func (u UserInfo) SetRoomId(strId string) {
+	u.WebRoomId = strId
+}
+
+func (u UserInfo) GetRoomId() string {
+	return u.WebRoomId
+}
+
 type LiveInfo struct {
 	UserInfo
 	IsLiving bool `json:"living"`

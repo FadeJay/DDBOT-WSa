@@ -330,9 +330,12 @@ func (d *Concern) freshLiveInfo(ctype concern_type.Type, id interface{}) ([]conc
 					logger.Errorf("内部错误 - 推送状态更新失败：%v", err)
 					return nil, err
 				}
+				if !isLive && usrInfo.GetRoomId() != "" {
+					newUserInfo.SetRoomId(usrInfo.GetRoomId())
+				}
 				if time.Now().Sub(time.Unix(oldFreshTime, 0)) < 30*time.Minute || oldFreshTime == 0 {
 					live := &LiveInfo{
-						UserInfo: *usrInfo,
+						UserInfo: *newUserInfo,
 						IsLiving: isLive,
 					}
 					result = append(result, live)
@@ -343,8 +346,8 @@ func (d *Concern) freshLiveInfo(ctype concern_type.Type, id interface{}) ([]conc
 				logger.Errorf("内部错误 - 刷新时间更新失败：%v", err)
 				return nil, err
 			}
-			if !isLive && usrInfo.WebRoomId != "" {
-				newUserInfo.WebRoomId = usrInfo.WebRoomId
+			if !isLive && usrInfo.GetRoomId() != "" {
+				newUserInfo.SetRoomId(usrInfo.GetRoomId())
 			}
 			err = d.AddUserInfo(newUserInfo)
 			if err != nil {

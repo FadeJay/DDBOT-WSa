@@ -720,6 +720,7 @@ func (l *Lsp) Serve(bot *bot.Bot) {
 	})
 
 	bot.BotSendFailedEvent.Subscribe(func(qqClient *client.QQClient, event *client.BotSendFailedEvent) {
+		logger.Warnf("消息已 %d 次发送失败，尝试触发提醒模板", event.Times)
 		templateName := "notify.bot.send_failed.tmpl"
 		data := map[string]interface{}{
 			"template_name": templateName,

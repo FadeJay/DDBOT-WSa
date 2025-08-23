@@ -16,19 +16,22 @@ func reqDynamicPage(DynamicId string) string {
 		requests.RequestAutoHostOption(),
 	}
 	var resp bytes.Buffer
-	requests.Get(Url, nil, &resp, opt...)
+	err := requests.Get(Url, nil, &resp, opt...)
+	if err != nil {
+		logger.Warnf("获取动态页面失败: %v", err)
+		return ""
+	}
 	return getDynamicTitle(resp.Bytes())
 }
 
 func getDynamicTitle(data []byte) string {
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(data))
 	if err != nil {
-		logger.Errorf("get dynamic title err: %v", err)
+		logger.Warnf("解析动态页面失败: %v", err)
 		return ""
 	}
 	title := doc.Find(".opus-module-title__text").Text()
 	if title == "" {
-		logger.Errorf("get dynamic title err: %v", err)
 		return ""
 	}
 	return title
