@@ -245,13 +245,6 @@ func (d *Concern) notifyGenerator() concern.NotifyGeneratorFunc {
 	}
 }
 
-func NewConcernLiveNotify(groupCode int64, info *LiveInfo) *LiveNotify {
-	return &LiveNotify{
-		GroupCode: groupCode,
-		LiveInfo:  info,
-	}
-}
-
 // 新增辅助函数获取刷新间隔
 func getRefreshInterval() time.Duration {
 	if config.GlobalConfig != nil {
@@ -335,8 +328,9 @@ func (d *Concern) freshLiveInfo(ctype concern_type.Type, id interface{}) ([]conc
 				}
 				if time.Now().Sub(time.Unix(oldFreshTime, 0)) < 30*time.Minute || oldFreshTime == 0 {
 					live := &LiveInfo{
-						UserInfo: *newUserInfo,
-						IsLiving: isLive,
+						UserInfo:          *newUserInfo,
+						IsLiving:          isLive,
+						liveStatusChanged: true,
 					}
 					result = append(result, live)
 				}

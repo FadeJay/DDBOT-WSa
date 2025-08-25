@@ -38,12 +38,26 @@ type LiveInfo struct {
 	UserInfo
 	IsLiving bool `json:"living"`
 
-	once     sync.Once
-	msgCache *mmsg.MSG
+	once              sync.Once
+	msgCache          *mmsg.MSG
+	liveTitleChanged  bool
+	liveStatusChanged bool
+}
+
+func (l *LiveInfo) IsLive() bool {
+	return true
 }
 
 func (l *LiveInfo) Living() bool {
 	return l.IsLiving
+}
+
+func (l *LiveInfo) TitleChanged() bool {
+	return l.liveTitleChanged
+}
+
+func (l *LiveInfo) LiveStatusChanged() bool {
+	return l.liveStatusChanged
 }
 
 func (l *LiveInfo) Site() string {
@@ -83,34 +97,29 @@ func (l *LiveInfo) GetMSG() *mmsg.MSG {
 	return l.msgCache
 }
 
-type LiveNotify struct {
-	*LiveInfo
+type ConcernLiveNotify struct {
 	GroupCode int64
+	*LiveInfo
 }
 
-func (l LiveNotify) Site() string {
-	return "douyin"
+func (notify *ConcernLiveNotify) GetGroupCode() int64 {
+	return notify.GroupCode
 }
 
-func (nl LiveNotify) Type() concern_type.Type {
-	return Live
+func (notify *ConcernLiveNotify) ToMessage() (m *mmsg.MSG) {
+	return notify.LiveInfo.GetMSG()
 }
 
-func (l *LiveNotify) GetUid() interface{} {
-	return l.SecUid
-}
-
-func (l LiveNotify) Logger() *logrus.Entry {
-	if &l == nil {
+func (notify *ConcernLiveNotify) Logger() *logrus.Entry {
+	if notify == nil {
 		return logger
 	}
-	return l.LiveInfo.Logger().WithFields(localutils.GroupLogFields(l.GroupCode))
+	return notify.LiveInfo.Logger().WithFields(localutils.GroupLogFields(notify.GroupCode))
 }
 
-func (n LiveNotify) GetGroupCode() int64 {
-	return n.GroupCode
-}
-
-func (n LiveNotify) ToMessage() *mmsg.MSG {
-	return n.LiveInfo.GetMSG()
+func NewConcernLiveNotify(groupCode int64, info *LiveInfo) *ConcernLiveNotify {
+	return &ConcernLiveNotify{
+		GroupCode: groupCode,
+		LiveInfo:  info,
+	}
 }
