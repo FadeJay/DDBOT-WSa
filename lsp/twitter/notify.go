@@ -2,12 +2,11 @@ package twitter
 
 import (
 	"fmt"
+	"github.com/Mrs4s/MiraiGo/message"
 	"github.com/cnxysoft/DDBOT-WSa/lsp/mmsg"
 	"github.com/cnxysoft/DDBOT-WSa/proxy_pool"
 	"github.com/cnxysoft/DDBOT-WSa/requests"
-	localutils "github.com/cnxysoft/DDBOT-WSa/utils"
 	"github.com/google/uuid"
-	"github.com/sirupsen/logrus"
 	"net/url"
 	"os"
 	"os/exec"
@@ -18,16 +17,20 @@ import (
 	"time"
 )
 
-type NewNotify struct {
-	groupCode int64
+type ConcernNewsNotify struct {
+	GroupCode int64 `json:"group_code"`
 	*NewsInfo
+
+	shouldCompact bool
+	compactKey    string
+	concern       *twitterConcern
 }
 
-func (n *NewNotify) GetGroupCode() int64 {
-	return n.groupCode
+func (n *ConcernNewsNotify) GetGroupCode() int64 {
+	return n.GroupCode
 }
 
-func (n *NewNotify) ToMessage() *mmsg.MSG {
+func (n *ConcernNewsNotify) ToMessage() (m *mmsg.MSG) {
 	defer func() {
 		if err := recover(); err != nil {
 			logger.WithField("stack", string(debug.Stack())).
@@ -35,50 +38,86 @@ func (n *NewNotify) ToMessage() *mmsg.MSG {
 				Errorf("concern notify recoverd %v", err)
 		}
 	}()
-	// 构造消息
-	message := mmsg.NewMSG()
-	if n.Tweet.ID == "" {
-		return message
-	}
-	var CreatedAt time.Time
-	if n.Tweet.RtType() == RETWEET {
-		CreatedAt = time.Now().UTC()
-		message.Textf(fmt.Sprintf("X-%s转发了%s的推文：\n",
-			n.Name, n.Tweet.OrgUser.Name))
-	} else {
-		CreatedAt = n.Tweet.CreatedAt
-		message.Textf(fmt.Sprintf("X-%s发布了新推文：\n", n.Name))
-	}
-	message.Text(CSTTime(CreatedAt).Format(time.DateTime) + "\n")
-	// msg加入推文
-	if n.Tweet.Content != "" {
-		content := n.Tweet.Content
-		if n.Tweet.Media != nil || content[len(content)-1] != '\n' {
-			content += "\n"
-		}
-		message.Text(content)
-	}
+	m = mmsg.NewMSG()
 	var addedUrl bool
-	// msg加入媒体
-	addMedia(n.Tweet, message, true, &addedUrl)
-	// msg加入被引用推文
-	if QuoteTweet := n.Tweet.QuoteTweet; QuoteTweet != nil {
+	if n.shouldCompact {
+		// 通过回复之前消息的方式简化推送
+		msg, _ := n.concern.GetNotifyMsg(n.GroupCode, n.compactKey)
+		if msg != nil {
+			m.Append(message.NewReply(msg))
+		}
+		logger.WithField("compact_key", n.compactKey).Debug("compact notify")
+		m.Textf("X-%s转发了%s的推文：\n%s\n%s\n",
+			n.Name,
+			n.Tweet.OrgUser.Name,
+			CSTTime(time.Now().UTC()).Format(time.DateTime),
+			n.Tweet.Content,
+		)
+		addTweetUrl(m, n.Tweet.Url, &addedUrl)
+	} else {
+		// 构造消息
+		if n.Tweet.ID == "" {
+			return
+		}
 		var CreatedAt time.Time
-		quoteTxt := "\n%v引用了%v的推文：\n"
-		CreatedAt = QuoteTweet.CreatedAt
-		// 检查是否需要插入cut
-		addCut(message, &quoteTxt)
-		message.Textf(fmt.Sprintf(quoteTxt, n.Tweet.OrgUser.Name, QuoteTweet.OrgUser.Name))
-		message.Text(CSTTime(CreatedAt).Format(time.DateTime) + "\n")
+		if n.Tweet.RtType() == RETWEET {
+			CreatedAt = time.Now().UTC()
+			m.Textf(fmt.Sprintf("X-%s转发了%s的推文：\n",
+				n.Name, n.Tweet.OrgUser.Name))
+		} else {
+			CreatedAt = n.Tweet.CreatedAt
+			m.Textf(fmt.Sprintf("X-%s发布了新推文：\n", n.Name))
+		}
+		m.Text(CSTTime(CreatedAt).Format(time.DateTime) + "\n")
 		// msg加入推文
-		if QuoteTweet.Content != "" {
-			message.Text(QuoteTweet.Content + "\n")
+		if n.Tweet.Content != "" {
+			content := n.Tweet.Content
+			if n.Tweet.Media != nil || content[len(content)-1] != '\n' {
+				content += "\n"
+			}
+			m.Text(content)
 		}
 		// msg加入媒体
-		addMedia(QuoteTweet, message, false, &addedUrl)
+		addMedia(n.Tweet, m, true, &addedUrl)
+		// msg加入被引用推文
+		if QuoteTweet := n.Tweet.QuoteTweet; QuoteTweet != nil {
+			var CreatedAt time.Time
+			quoteTxt := "\n%v引用了%v的推文：\n"
+			CreatedAt = QuoteTweet.CreatedAt
+			// 检查是否需要插入cut
+			addCut(m, &quoteTxt)
+			m.Textf(fmt.Sprintf(quoteTxt, n.Tweet.OrgUser.Name, QuoteTweet.OrgUser.Name))
+			m.Text(CSTTime(CreatedAt).Format(time.DateTime) + "\n")
+			// msg加入推文
+			if QuoteTweet.Content != "" {
+				m.Text(QuoteTweet.Content + "\n")
+			}
+			// msg加入媒体
+			addMedia(QuoteTweet, m, false, &addedUrl)
+		}
+		addTweetUrl(m, n.Tweet.Url, &addedUrl)
 	}
-	addTweetUrl(message, n.Tweet.Url, &addedUrl)
-	return message
+	return
+}
+
+func (n *ConcernNewsNotify) IsLive() bool {
+	return false
+}
+
+func (n *ConcernNewsNotify) Living() bool {
+	return false
+}
+
+func NewConcernNewsNotify(groupCode int64, newsInfo *NewsInfo, c *twitterConcern) *ConcernNewsNotify {
+	if newsInfo == nil {
+		return nil
+	}
+	var result = &ConcernNewsNotify{
+		GroupCode: groupCode,
+		NewsInfo:  newsInfo,
+		concern:   c,
+	}
+	return result
 }
 
 func addMedia(tweet *Tweet, message *mmsg.MSG, mainTweet bool, addedUrl *bool) {
@@ -272,10 +311,6 @@ func setMirrorHost(mirrorHost string, m Media) (url.URL, error) {
 		Host:   mirrorHost,
 	}
 	return Url, nil
-}
-
-func (n *NewNotify) Logger() *logrus.Entry {
-	return n.NewsInfo.Logger().WithFields(localutils.GroupLogFields(n.groupCode))
 }
 
 // 检测是否包含URI编码特征

@@ -174,6 +174,12 @@ func LatestTweetIdsKey(keys ...interface{}) string {
 func TwitterLastFreshKey(keys ...interface{}) string {
 	return NamedKey("TwitterLastFresh", keys)
 }
+func TwitterCompactMarkKey(keys ...interface{}) string {
+	return NamedKey("TwitterCompactMark", keys)
+}
+func TwitterNotifyMsgKey(keys ...interface{}) string {
+	return NamedKey("TwitterNotifyMsg", keys)
+}
 func DouyinUserInfoKey(keys ...interface{}) string {
 	return NamedKey("DouyinUserInfo", keys)
 }

@@ -6,7 +6,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Mrs4s/MiraiGo/message"
 	"github.com/Sora233/MiraiGo-Template/config"
+	localdb "github.com/cnxysoft/DDBOT-WSa/lsp/buntdb"
+	localutils "github.com/cnxysoft/DDBOT-WSa/utils"
 	"math/rand"
 	"net/http/cookiejar"
 	"net/url"
@@ -41,6 +44,8 @@ const (
 	//alt1BaseURL = "https://nitter.privacydev.net/%s/rss"
 	//TweetAPI = "https://cdn.syndication.twimg.com/tweet-result?id=%s&token=%s"
 	ErrNotFound = "not found"
+
+	CompactExpireTime = time.Minute * 60
 )
 
 var (
@@ -53,19 +58,50 @@ var (
 	Cookie *cookiejar.Jar
 )
 
-type twitterStateManager struct {
+type StateManager struct {
 	*concern.StateManager
+	*ExtraKey
+	concern *twitterConcern
 }
 
 // GetGroupConcernConfig 重写 concern.StateManager 的GetGroupConcernConfig方法，让我们自己定义的 GroupConcernConfig 生效
-func (t *twitterStateManager) GetGroupConcernConfig(groupCode int64, id interface{}) concern.IConfig {
-	return NewGroupConcernConfig(t.StateManager.GetGroupConcernConfig(groupCode, id))
+func (t *StateManager) GetGroupConcernConfig(groupCode int64, id interface{}) concern.IConfig {
+	return NewGroupConcernConfig(t.StateManager.GetGroupConcernConfig(groupCode, id), t.concern)
+}
+
+func (t *StateManager) SetNotifyMsg(notifyKey string, msg *message.GroupMessage) error {
+	tmp := &message.GroupMessage{
+		Id:        msg.Id,
+		GroupCode: msg.GroupCode,
+		Sender:    msg.Sender,
+		Time:      msg.Time,
+		Elements: localutils.MessageFilter(msg.Elements, func(e message.IMessageElement) bool {
+			return e.Type() == message.Text || e.Type() == message.Image
+		}),
+	}
+	value, err := localutils.SerializationGroupMsg(tmp)
+	if err != nil {
+		return err
+	}
+	return t.Set(t.NotifyMsgKey(tmp.GroupCode, notifyKey), value,
+		localdb.SetExpireOpt(CompactExpireTime), localdb.SetNoOverWriteOpt())
+}
+
+func (t *StateManager) GetNotifyMsg(groupCode int64, notifyKey string) (*message.GroupMessage, error) {
+	value, err := t.Get(t.NotifyMsgKey(groupCode, notifyKey))
+	if err != nil {
+		return nil, err
+	}
+	return localutils.DeserializationGroupMsg(value)
+}
+
+func (t *StateManager) SetGroupCompactMarkIfNotExist(groupCode int64, compactKey string) error {
+	return t.Set(t.CompactMarkKey(groupCode, compactKey), "",
+		localdb.SetExpireOpt(CompactExpireTime), localdb.SetNoOverWriteOpt())
 }
 
 type twitterConcern struct {
-	*twitterStateManager
-	*extraKey
-	newUsersChan chan interface{} // 新用户通知通道
+	*StateManager
 }
 
 func (t *twitterConcern) Site() string {
@@ -186,11 +222,6 @@ func (t *twitterConcern) Add(ctx mmsg.IMsgCtx, groupCode int64, id interface{}, 
 	if err != nil {
 		return nil, err
 	}
-	select {
-	case t.newUsersChan <- id:
-	default:
-		logger.Warnf("新用户通知队列已满，将在下个周期刷新，userId: %v", id)
-	}
 	return info, nil
 }
 
@@ -272,10 +303,12 @@ func (t *twitterConcern) Get(id interface{}) (concern.IdentityInfo, error) {
 }
 
 func (t *twitterConcern) notifyGenerator() concern.NotifyGeneratorFunc {
-	return func(groupCode int64, event concern.Event) []concern.Notify {
-		switch event.(type) {
+	return func(groupCode int64, event concern.Event) (result []concern.Notify) {
+		switch e := event.(type) {
 		case *NewsInfo:
-			return []concern.Notify{&NewNotify{groupCode, event.(*NewsInfo)}}
+			notifies := NewConcernNewsNotify(groupCode, e, t.concern)
+			result = append(result, notifies)
+			return
 		default:
 			logger.Errorf("unknown EventType %+v", event)
 			return nil
@@ -337,15 +370,6 @@ func (t *twitterConcern) fresh() concern.FreshFunc {
 
 		for {
 			select {
-			case userId := <-t.newUsersChan:
-				go func(uid interface{}) { // 使用goroutine替代AfterFunc
-					select {
-					case <-time.After(time.Duration(rand.Int63n(10)) * time.Second):
-						t.processUser(ctx, eventChan, uid)
-					case <-ctx.Done():
-						return
-					}
-				}(userId)
 			case <-ti.C:
 				t.processUsers(ctx, eventChan)
 				ti.Reset(interval) // 重置定时器
@@ -648,8 +672,13 @@ func (t *twitterConcern) GetStateManager() concern.IStateManager {
 }
 
 func newConcern(notifyChan chan<- concern.Notify) *twitterConcern {
+	con := &twitterConcern{}
 	// 默认是string格式的id
-	sm := &twitterStateManager{concern.NewStateManagerWithStringID(Site, notifyChan)}
+	con.StateManager = &StateManager{StateManager: concern.NewStateManagerWithStringID(Site, notifyChan), concern: con, ExtraKey: NewExtraKey()}
 	// 如果要使用int64格式的id，可以用下面的
-	return &twitterConcern{sm, new(extraKey), make(chan interface{}, 10)}
+	return con
+}
+
+func (c *twitterConcern) GetGroupConcernConfig(groupCode int64, id interface{}) (concernConfig concern.IConfig) {
+	return NewGroupConcernConfig(c.StateManager.GetGroupConcernConfig(groupCode, id), c.concern)
 }

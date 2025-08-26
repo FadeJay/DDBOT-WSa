@@ -25,8 +25,8 @@ func TestToMessage_ErrorHandling(t *testing.T) {
 		Name: "testuser",
 	}
 
-	notify := &NewNotify{
-		groupCode: 123456,
+	notify := &ConcernNewsNotify{
+		GroupCode: 123456,
 		NewsInfo: &NewsInfo{
 			UserInfo: userInfo,
 			Tweet:    &tweet,

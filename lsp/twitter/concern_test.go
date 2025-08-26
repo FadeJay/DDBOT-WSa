@@ -98,10 +98,10 @@ func TestTwitterConcern_GetUserInfo(t *testing.T) {
 			defer func() { buildProfileURL = originalBuildProfileURL }()
 
 			tc := &twitterConcern{
-				twitterStateManager: &twitterStateManager{
+				StateManager: &StateManager{
 					StateManager: concern.NewStateManagerWithStringID(Site, nil),
+					ExtraKey:     new(ExtraKey),
 				},
-				extraKey: new(extraKey),
 			}
 
 			Cookie, _ = test.NewJar()
@@ -350,10 +350,10 @@ TVアニメは7月6日(日)放送開始です！
 
 	// 初始化 twitterConcern
 	tc := &twitterConcern{
-		twitterStateManager: &twitterStateManager{
+		StateManager: &StateManager{
 			StateManager: concern.NewStateManagerWithStringID(Site, nil),
+			ExtraKey:     new(ExtraKey),
 		},
-		extraKey: new(extraKey),
 	}
 
 	// 创建 CookieJar
