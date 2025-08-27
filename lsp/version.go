@@ -30,7 +30,7 @@ func CheckUpdate() string {
 		requests.RetryOption(2),
 	}
 	var m map[string]interface{}
-	err := requests.Get("https://ddup.znin.net/", nil, &m, opts...)
+	err := requests.Get("https://api.github.com/repos/cnxysoft/DDBOT-WSa/releases/latest", nil, &m, opts...)
 	if err != nil {
 		logrus.Errorf("更新检测失败：%v", err)
 		return ""
