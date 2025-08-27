@@ -1607,10 +1607,26 @@ func parseJsonContent(meta map[string]interface{}, elements *[]message.IMessageE
 		if channel, ok := metaData["channel_info"].(map[string]interface{}); ok {
 			needDec = false
 			feedTitle := "未知"
-			if feedTitle, ok = metaData["feed"].(map[string]interface{})["title"].(map[string]interface{})["contents"].([]interface{})[0].(map[string]interface{})["text_content"].(map[string]interface{})["text"].(string); !ok {
-				logger.Warnf("Failed to parse feed title")
+			if feed, ok := metaData["feed"].(map[string]interface{}); ok {
+				if titleMap, ok := feed["title"].(map[string]interface{}); ok {
+					if contents, ok := titleMap["contents"].([]interface{}); ok && len(contents) > 0 {
+						if first, ok := contents[0].(map[string]interface{}); ok {
+							if textContent, ok := first["text_content"].(map[string]interface{}); ok {
+								if txt, ok := textContent["text"].(string); ok {
+									feedTitle = txt
+								}
+							}
+						}
+					} else {
+						logger.Warnf("Card feed title missing contents: %+v", metaData)
+					}
+				}
 			}
-			metaMap.Title = channel["channel_name"].(string)
+			guildName := "未知"
+			if name, ok := channel["guild_name"].(string); ok {
+				guildName = name
+			}
+			metaMap.Title = guildName
 			metaMap.Desc = feedTitle
 			metaMap.Tag = "频道"
 		}
