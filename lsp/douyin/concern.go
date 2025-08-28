@@ -303,51 +303,51 @@ func (d *Concern) freshLiveInfo(ctype concern_type.Type, id interface{}) ([]conc
 		if err != nil {
 			logger.Errorf("查找用户信息失败：%v", err)
 		}
-		newUserInfo, err := GetUserInfo(userId)
+		isLive, err := FreshLiveStatus(usrInfo.Uid)
 		if err != nil {
 			return nil, err
 		}
-		if newUserInfo != nil {
-			isLive := newUserInfo.WebRoomId != ""
-			oldIsLive, err := d.GetCurrentLive(userId)
-			if err != nil && err.Error() != ErrNotFound {
+		oldIsLive, err := d.GetCurrentLive(userId)
+		if err != nil && err.Error() != ErrNotFound {
+			return nil, err
+		}
+		oldFreshTime, err := d.GetFreshTime(userId)
+		if err != nil && err.Error() != ErrNotFound {
+			return nil, err
+		}
+		if oldIsLive != isLive {
+			err = d.SetCurrentLive(userId, isLive)
+			if err != nil {
+				logger.Errorf("内部错误 - 推送状态更新失败：%v", err)
 				return nil, err
 			}
-			oldFreshTime, err := d.GetFreshTime(userId)
-			if err != nil && err.Error() != ErrNotFound {
-				return nil, err
-			}
-			if oldIsLive != isLive {
-				err = d.SetCurrentLive(userId, isLive)
+			if isLive && usrInfo.GetRoomId() == "" {
+				newUserInfo, err := GetUserInfo(userId)
 				if err != nil {
-					logger.Errorf("内部错误 - 推送状态更新失败：%v", err)
 					return nil, err
 				}
-				if !isLive && usrInfo.GetRoomId() != "" {
-					newUserInfo.SetRoomId(usrInfo.GetRoomId())
-				}
-				if time.Now().Sub(time.Unix(oldFreshTime, 0)) < 30*time.Minute || oldFreshTime == 0 {
-					live := &LiveInfo{
-						UserInfo:          *newUserInfo,
-						IsLiving:          isLive,
-						liveStatusChanged: true,
-					}
-					result = append(result, live)
+				if newUserInfo.GetRoomId() != "" {
+					usrInfo = newUserInfo
 				}
 			}
-			err = d.SetFreshTime(userId, time.Now())
-			if err != nil {
-				logger.Errorf("内部错误 - 刷新时间更新失败：%v", err)
-				return nil, err
+			if time.Now().Sub(time.Unix(oldFreshTime, 0)) < 30*time.Minute || oldFreshTime == 0 {
+				live := &LiveInfo{
+					UserInfo:          *usrInfo,
+					IsLiving:          isLive,
+					liveStatusChanged: true,
+				}
+				result = append(result, live)
 			}
-			if !isLive && usrInfo.GetRoomId() != "" {
-				newUserInfo.SetRoomId(usrInfo.GetRoomId())
-			}
-			err = d.AddUserInfo(newUserInfo)
-			if err != nil {
-				logger.Errorf("内部错误 - 用户信息更新失败：%v", err)
-				return nil, err
-			}
+		}
+		err = d.SetFreshTime(userId, time.Now())
+		if err != nil {
+			logger.Errorf("内部错误 - 刷新时间更新失败：%v", err)
+			return nil, err
+		}
+		err = d.AddUserInfo(usrInfo)
+		if err != nil {
+			logger.Errorf("内部错误 - 用户信息更新失败：%v", err)
+			return nil, err
 		}
 	}
 	return result, nil

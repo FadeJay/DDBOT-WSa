@@ -161,25 +161,25 @@ type UserInfoResp struct {
 					LightCoverColor string `json:"lightCoverColor"`
 				} `json:"profileCoverList"`
 			} `json:"coverAndHeadImageInfo"`
-			RoomId                       int64  `json:"roomId"`
-			IsBlocked                    bool   `json:"isBlocked"`
-			IsBlock                      bool   `json:"isBlock"`
-			IsBan                        bool   `json:"isBan"`
-			FavoritePermission           int    `json:"favoritePermission"`
-			ShowFavoriteList             bool   `json:"showFavoriteList"`
-			ViewHistoryPermission        bool   `json:"viewHistoryPermission"`
-			IpLocation                   string `json:"ipLocation"`
-			IsNotShowBaseTag             string `json:"isNotShowBaseTag"`
-			IsGovMediaVip                bool   `json:"isGovMediaVip"`
-			IsStar                       bool   `json:"isStar"`
-			HideLocation                 string `json:"hideLocation"`
-			NeedSpecialShowFollowerCount bool   `json:"needSpecialShowFollowerCount"`
-			IsNotShow                    bool   `json:"isNotShow"`
-			AvatarAuditing               string `json:"avatarAuditing"`
-			ContinuationState            int    `json:"continuationState"`
-			ImRoleIds                    []int  `json:"im_role_ids"`
-			RoomIdStr                    string `json:"roomIdStr"`
-			CloseConsecutiveChat         string `json:"close_consecutive_chat"`
+			RoomId                       int64       `json:"roomId"`
+			IsBlocked                    bool        `json:"isBlocked"`
+			IsBlock                      bool        `json:"isBlock"`
+			IsBan                        bool        `json:"isBan"`
+			FavoritePermission           int         `json:"favoritePermission"`
+			ShowFavoriteList             bool        `json:"showFavoriteList"`
+			ViewHistoryPermission        bool        `json:"viewHistoryPermission"`
+			IpLocation                   string      `json:"ipLocation"`
+			IsNotShowBaseTag             string      `json:"isNotShowBaseTag"`
+			IsGovMediaVip                bool        `json:"isGovMediaVip"`
+			IsStar                       bool        `json:"isStar"`
+			HideLocation                 string      `json:"hideLocation"`
+			NeedSpecialShowFollowerCount bool        `json:"needSpecialShowFollowerCount"`
+			IsNotShow                    bool        `json:"isNotShow"`
+			AvatarAuditing               string      `json:"avatarAuditing"`
+			ContinuationState            int         `json:"continuationState"`
+			ImRoleIds                    interface{} `json:"im_role_ids"`
+			RoomIdStr                    string      `json:"roomIdStr"`
+			CloseConsecutiveChat         string      `json:"close_consecutive_chat"`
 			AccountCertInfo              struct {
 				LabelStyle   any    `json:"labelStyle"`
 				LabelText    string `json:"labelText"`

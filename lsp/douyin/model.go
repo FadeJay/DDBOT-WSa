@@ -18,19 +18,31 @@ type UserInfo struct {
 	WebRoomId string `json:"web_rid"`
 }
 
-func (u UserInfo) GetUid() interface{} {
+func (u *UserInfo) GetUid() interface{} {
+	if u == nil {
+		return ""
+	}
 	return u.SecUid
 }
 
-func (u UserInfo) GetName() string {
+func (u *UserInfo) GetName() string {
+	if u == nil {
+		return ""
+	}
 	return u.NikeName
 }
 
-func (u UserInfo) SetRoomId(strId string) {
+func (u *UserInfo) SetRoomId(strId string) {
+	if u == nil {
+		return
+	}
 	u.WebRoomId = strId
 }
 
-func (u UserInfo) GetRoomId() string {
+func (u *UserInfo) GetRoomId() string {
+	if u == nil {
+		return ""
+	}
 	return u.WebRoomId
 }
 
