@@ -17,6 +17,8 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/cnxysoft/DDBOT-WSa/lsp/eventbus"
+
 	"github.com/pkg/errors"
 
 	"github.com/RomiChan/syncx"
@@ -1138,11 +1140,15 @@ func (c *QQClient) handleMetaEvent(wsmsg WebSocketMessage) {
 		stat := c.getStatus()
 		c.Online.Store(stat.Online)
 		c.alive = stat.Good
+		// BOT状态广播
+		eventbus.BusObj.Publish("bot_online", c.Online.Load())
 	case "heartbeat":
 		logger.Tracef("收到心跳，BOT是否在线：%v", wsmsg.Status.Online)
 		c.Online.Store(wsmsg.Status.Online)
 		c.alive = wsmsg.Status.Good
-		if !wsmsg.Status.Online {
+		// BOT状态广播
+		eventbus.BusObj.Publish("bot_online", c.Online.Load())
+		if !c.Online.Load() {
 			c.BotOfflineEvent.dispatch(c, &BotOfflineEvent{})
 		}
 	default:

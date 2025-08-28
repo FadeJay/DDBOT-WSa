@@ -9,6 +9,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cnxysoft/DDBOT-WSa/lsp/eventbus"
+	"github.com/robfig/cron/v3"
+
 	"github.com/Mrs4s/MiraiGo/client"
 	"github.com/Mrs4s/MiraiGo/message"
 	"github.com/Sora233/MiraiGo-Template/bot"
@@ -32,7 +35,6 @@ import (
 	"github.com/cnxysoft/DDBOT-WSa/utils/msgstringer"
 	"github.com/fsnotify/fsnotify"
 	jsoniter "github.com/json-iterator/go"
-	"github.com/robfig/cron/v3"
 	"github.com/sirupsen/logrus"
 	"github.com/tidwall/buntdb"
 	"go.uber.org/atomic"
@@ -46,6 +48,8 @@ var logger = logrus.WithField("module", ModuleName)
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 var Debug = false
+
+var online = false
 
 type Lsp struct {
 	pool          image_pool.Pool
@@ -219,6 +223,17 @@ func (l *Lsp) Init() {
 		go cfg.ReloadCustomCommandPrefix()
 		l.CronjobReload()
 	})
+	go func() {
+		for msg := range eventbus.BusObj.Subscribe("bot_online") {
+			if m, ok := msg.(bool); ok {
+				online = m
+				if online {
+
+				}
+			}
+			fmt.Printf("模块 LSP 收到: bot_online: %v\n", msg)
+		}
+	}()
 }
 
 func (l *Lsp) PostInit() {

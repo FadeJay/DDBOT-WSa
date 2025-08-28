@@ -7,6 +7,8 @@ type Bus struct {
 	mu          sync.RWMutex
 }
 
+var BusObj = New()
+
 func New() *Bus {
 	return &Bus{subscribers: make(map[string][]chan interface{})}
 }

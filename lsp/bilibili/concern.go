@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cnxysoft/DDBOT-WSa/lsp/eventbus"
+
 	"github.com/Sora233/MiraiGo-Template/config"
 	"github.com/Sora233/MiraiGo-Template/utils"
 	localdb "github.com/cnxysoft/DDBOT-WSa/lsp/buntdb"
@@ -92,6 +94,8 @@ func (c *Concern) Stop() {
 	logger.Trace("bilibili concern已停止")
 }
 
+var bus = eventbus.New()
+
 func (c *Concern) Start() error {
 	Init()
 	lastFresh, _ := c.GetLastFreshTime()
@@ -124,6 +128,14 @@ func (c *Concern) Start() error {
 			}
 		}()
 	}
+	go func() {
+		for msg := range eventbus.BusObj.Subscribe("bot_online") {
+			if _, ok := msg.(bool); ok {
+				c.cacheStartTs = time.Now().Unix()
+			}
+			fmt.Printf("模块 BILIBILI 收到: bot_online: %v\n", msg)
+		}
+	}()
 	return c.StateManager.Start()
 }
 
