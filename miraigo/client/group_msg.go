@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"github.com/Sora233/MiraiGo-Template/config"
 	"math"
 	"math/rand"
 	"strconv"
@@ -130,7 +129,7 @@ func (c *QQClient) RealSendMSG(groupCode int64, m *message.SendingMessage, newst
 		"message":  messages,
 	}, expTime)
 	if err != nil {
-		if swReport := config.GlobalConfig.GetBool("bot.sendFailureReminder.enable"); swReport {
+		if GetSendFailureReminder() {
 			c.handleSendFailed(true, newstr, 0, groupCode)
 		}
 		return nil, errors.Wrap(err, "发送群消息失败")
@@ -160,7 +159,7 @@ func (c *QQClient) RealSendMSG(groupCode int64, m *message.SendingMessage, newst
 	if g := c.FindGroup(groupCode); g != nil {
 		retMsg.GroupName = g.Name
 	}
-	if swReport := config.GlobalConfig.GetBool("bot.sendFailureReminder.enable"); swReport {
+	if GetSendFailureReminder() {
 		c.handleSendFailed(false, "", 0, groupCode)
 	}
 	return &retMsg, nil

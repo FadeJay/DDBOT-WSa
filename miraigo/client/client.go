@@ -1151,6 +1151,7 @@ func (c *QQClient) handleMetaEvent(wsmsg WebSocketMessage) {
 }
 
 func (c *QQClient) handleBotOfflineNotice(_ WebSocketMessage) (bool, error) {
+	c.Online.Store(false)
 	c.BotOfflineEvent.dispatch(c, &BotOfflineEvent{})
 	return false, nil
 }
@@ -2940,7 +2941,7 @@ func (c *QQClient) handleSendFailed(add bool, msg string, targetType int, target
 		c.retryTimes = 0
 		logger.Debugf("检测到消息发送成功，清空失败计数，当前失败次数：%d", c.retryTimes)
 	}
-	if c.retryTimes == config.GlobalConfig.GetInt("sendFailureReminder.times") {
+	if c.retryTimes == GetSendFailureReminderTimes() {
 		logger.Warnf("累计发送消息失败 %d 次，触发 BotSendFailedEvent 事件", c.retryTimes)
 		c.BotSendFailedEvent.dispatch(c, &BotSendFailedEvent{
 			msg,
@@ -2949,4 +2950,12 @@ func (c *QQClient) handleSendFailed(add bool, msg string, targetType int, target
 			c.retryTimes,
 		})
 	}
+}
+
+func GetSendFailureReminder() bool {
+	return config.GlobalConfig.GetBool("bot.sendFailureReminder.enable")
+}
+
+func GetSendFailureReminderTimes() int {
+	return config.GlobalConfig.GetInt("bot.sendFailureReminder.times")
 }

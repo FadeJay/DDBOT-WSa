@@ -3,6 +3,7 @@ package lsp
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"runtime/debug"
 	"strconv"
 	"sync"
@@ -897,10 +898,9 @@ func (l *Lsp) SendMsg(m *mmsg.MSG, target mmsg.Target) (res []interface{}) {
 	for idx, msg := range msgs {
 		r := l.send(msg, target)
 		res = append(res, r)
-		// 原本的发送返回值已经无效，故直接无视
-		// if reflect.ValueOf(r).Elem().FieldByName("Id").Int() == -1 {
-		// 	break
-		// }
+		if reflect.ValueOf(r).Elem().FieldByName("Id").Int() == -1 {
+			break
+		}
 		if idx > 1 {
 			time.Sleep(time.Millisecond * 300)
 		}
@@ -925,9 +925,9 @@ func (l *Lsp) PM(res []interface{}) []*message.PrivateMessage {
 }
 
 func (l *Lsp) sendPrivateMessage(uin int64, msg *message.SendingMessage) (res *message.PrivateMessage) {
-	// if bot.Instance == nil || !bot.Instance.Online.Load() {
-	// 	return &message.PrivateMessage{Id: -1, Elements: msg.Elements}
-	// }
+	if bot.Instance == nil || !bot.Instance.Online.Load() {
+		return &message.PrivateMessage{Id: -1, Elements: msg.Elements}
+	}
 	if msg == nil {
 		logger.WithFields(localutils.FriendLogFields(uin)).Debug("send with nil private message")
 		return &message.PrivateMessage{Id: -1}
@@ -1007,17 +1007,6 @@ func (l *Lsp) sendGroupMessage(groupCode int64, msg *message.SendingMessage, rec
 		logger.WithField("content", msgStr).
 			WithFields(localutils.GroupLogFields(groupCode)).
 			Error(err)
-		// if msg.Count(func(e message.IMessageElement) bool {
-		// 	return e.Type() == message.At && e.(*message.AtElement).Target == 0
-		// }) > 0 {
-		// 	logger.WithField("content", msgStr).
-		// 		WithFields(localutils.GroupLogFields(groupCode)).
-		// 		Errorf("发送群消息失败，可能是@全员次数用尽")
-		// } else {
-		// 	logger.WithField("content", msgStr).
-		// 		WithFields(localutils.GroupLogFields(groupCode)).
-		// 		Errorf("发送群消息失败，可能是被禁言或者账号被风控")
-		// }
 	}
 	if res == nil {
 		logger.WithFields(localutils.GroupLogFields(groupCode)).Debug("failed to send message")
