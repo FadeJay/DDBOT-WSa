@@ -1139,8 +1139,12 @@ func (c *QQClient) handleMetaEvent(wsmsg WebSocketMessage) {
 		c.Online.Store(stat.Online)
 		c.alive = stat.Good
 	case "heartbeat":
+		logger.Tracef("收到心跳，BOT是否在线：%v", wsmsg.Status.Online)
 		c.Online.Store(wsmsg.Status.Online)
 		c.alive = wsmsg.Status.Good
+		if !wsmsg.Status.Online {
+			c.BotOfflineEvent.dispatch(c, &BotOfflineEvent{})
+		}
 	default:
 		logger.Warnf("未知 元事件 类型: %s", wsmsg.MetaEventType)
 	}
@@ -2931,16 +2935,18 @@ func (c *QQClient) GetStrangerInfo(uid int64) (StrangerInfo, error) {
 func (c *QQClient) handleSendFailed(add bool, msg string, targetType int, targetId int64) {
 	if add {
 		c.retryTimes++
-		if c.retryTimes == config.GlobalConfig.GetInt("sendFailureReminder.times") {
-			logger.Warnf("发送消息失败，已尝试 %d 次，触发BotSendFailedEvent事件", c.retryTimes)
-			c.BotSendFailedEvent.dispatch(c, &BotSendFailedEvent{
-				msg,
-				targetId,
-				targetType,
-				c.retryTimes,
-			})
-		}
+		logger.Debugf("检测到消息发送失败，增加失败计数，当前失败次数：%d", c.retryTimes)
 	} else {
 		c.retryTimes = 0
+		logger.Debugf("检测到消息发送成功，清空失败计数，当前失败次数：%d", c.retryTimes)
+	}
+	if c.retryTimes == config.GlobalConfig.GetInt("sendFailureReminder.times") {
+		logger.Warnf("累计发送消息失败 %d 次，触发 BotSendFailedEvent 事件", c.retryTimes)
+		c.BotSendFailedEvent.dispatch(c, &BotSendFailedEvent{
+			msg,
+			targetId,
+			targetType,
+			c.retryTimes,
+		})
 	}
 }

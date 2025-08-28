@@ -131,7 +131,6 @@ func (c *QQClient) RealSendMSG(groupCode int64, m *message.SendingMessage, newst
 	}, expTime)
 	if err != nil {
 		if swReport := config.GlobalConfig.GetBool("bot.sendFailureReminder.enable"); swReport {
-			logger.Debugf("检测到发送群消息失败，增加一次失败计数，当前失败次数：%d", c.retryTimes)
 			c.handleSendFailed(true, newstr, 0, groupCode)
 		}
 		return nil, errors.Wrap(err, "发送群消息失败")
@@ -162,7 +161,6 @@ func (c *QQClient) RealSendMSG(groupCode int64, m *message.SendingMessage, newst
 		retMsg.GroupName = g.Name
 	}
 	if swReport := config.GlobalConfig.GetBool("bot.sendFailureReminder.enable"); swReport {
-		logger.Debugf("检测到发送群消息成功，清空失败计数，当前失败次数：%d", c.retryTimes)
 		c.handleSendFailed(false, "", 0, groupCode)
 	}
 	return &retMsg, nil
