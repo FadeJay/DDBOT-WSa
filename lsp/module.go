@@ -739,20 +739,19 @@ func (l *Lsp) Serve(bot *bot.Bot) {
 		logger.Warnf("消息已 %d 次发送失败，尝试触发提醒模板", event.Times)
 		templateName := "notify.bot.send_failed.tmpl"
 		data := map[string]interface{}{
-			"template_name": templateName,
-			"message":       event.Message,
-			"target_id":     event.TargetUin,
-			"target_type":   event.TargetType,
-			"times":         event.Times,
+			"message":     event.Message,
+			"target_id":   event.TargetUin,
+			"target_type": event.TargetType,
+			"times":       event.Times,
 		}
 		switch event.TargetType {
 		case 0:
 			if gi := localutils.GetBot().FindGroup(event.TargetUin); gi != nil {
-				data["group_name"] = gi.Name
+				data["target_name"] = gi.Name
 			}
 		case 1:
 			if fi := localutils.GetBot().FindFriend(event.TargetUin); fi != nil {
-				data["member_name"] = fi.Nickname
+				data["target_name"] = fi.Nickname
 			}
 		}
 		logger.Debug("消息多次发送失败，尝试触发提醒模板")
