@@ -564,12 +564,14 @@ type SendMsg struct {
 	Message    *message.SendingMessage
 	NewStr     string
 	ResultChan chan SendResp
+	CreatedAt  time.Time
 }
 
 var sendMessageQueue = make(chan SendMsg, 128)
 var messageQueue = make(chan []byte, 128)
 var md5Int64Mapping = make(map[int64]string)
 var md5Int64MappingLock sync.Mutex
+var offlineQueue []SendMsg
 
 type DynamicInt64 int64
 
@@ -2189,6 +2191,16 @@ func (c *QQClient) ReloadGroupMembers() (int, error) {
 }
 
 func (c *QQClient) SendGroupMessage(groupCode int64, m *message.SendingMessage, newstr string) SendResp {
+	if getOfflineQueueEnable() && (c == nil || !c.Online.Load()) {
+		// 暂存消息
+		saveOfflineMsg(SendMsg{
+			GroupCode: groupCode,
+			Message:   m,
+			NewStr:    newstr,
+			CreatedAt: time.Now(),
+		})
+		return SendResp{RetMSG: &message.GroupMessage{Id: -1, Elements: m.Elements}}
+	}
 	resultChan := make(chan SendResp)
 	sendMsg := SendMsg{
 		GroupCode:  groupCode,
@@ -2198,6 +2210,43 @@ func (c *QQClient) SendGroupMessage(groupCode int64, m *message.SendingMessage, 
 	}
 	sendMessageQueue <- sendMsg
 	return <-resultChan
+}
+
+func saveOfflineMsg(MSG SendMsg) {
+	offlineQueue = append(offlineQueue, MSG)
+}
+
+func (c *QQClient) OnReconnect() {
+	msgs := loadOfflineMsgs()
+	expire := getOfflineQueueExpire() // 30m
+	now := time.Now()
+
+	for _, msg := range msgs {
+		if now.Sub(msg.CreatedAt) <= expire {
+			sendMessageQueue <- msg
+		} else {
+			logger.Infof("丢弃过期离线消息: %v", msg.NewStr)
+		}
+	}
+	clearOfflineMsgs()
+}
+
+func loadOfflineMsgs() []SendMsg {
+	return offlineQueue
+}
+
+func clearOfflineMsgs() {
+	offlineQueue = nil
+}
+
+func getOfflineQueueEnable() bool {
+	return config.GlobalConfig.GetBool("bot.offlineQueue.enable")
+}
+
+func getOfflineQueueExpire() time.Duration {
+	timeStr := config.GlobalConfig.GetString("bot.offlineQueue.expire")
+	t, _ := time.ParseDuration(timeStr)
+	return t
 }
 
 func (c *QQClient) sendToWebSocketClient(ws *websocket.Conn, message []byte) {

@@ -111,7 +111,7 @@ func Run() {
 
 	// 初始化 Modules
 	bot.StartService()
-	fmt.Println("运行完了bot.StartService()")
+	//fmt.Println("运行完了bot.StartService()")
 	// 登录 跳过登录
 	//bot.Login()
 
@@ -120,7 +120,7 @@ func Run() {
 	// bot.RefreshList()
 
 	lsp.Instance.PostStart(bot.Instance)
-	fmt.Println("运行完了lsp.Instance.PostStart(bot.Instance)")
+	//fmt.Println("运行完了lsp.Instance.PostStart(bot.Instance)")
 
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)

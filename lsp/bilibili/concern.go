@@ -28,6 +28,8 @@ const (
 	News concern_type.Type = "news"
 )
 
+var online bool
+
 type Concern struct {
 	*StateManager
 	attentionListExpirable *expirable.Expirable
@@ -94,8 +96,6 @@ func (c *Concern) Stop() {
 	logger.Trace("bilibili concern已停止")
 }
 
-var bus = eventbus.New()
-
 func (c *Concern) Start() error {
 	Init()
 	lastFresh, _ := c.GetLastFreshTime()
@@ -130,10 +130,14 @@ func (c *Concern) Start() error {
 	}
 	go func() {
 		for msg := range eventbus.BusObj.Subscribe("bot_online") {
-			if _, ok := msg.(bool); ok {
-				c.cacheStartTs = time.Now().Unix()
+			if m, ok := msg.(bool); ok {
+				if !online && m {
+					c.cacheStartTs = time.Now().Unix()
+					logger.Infof("BOT已上线，刷新B站订阅模块启动时间")
+				}
+				online = m
 			}
-			fmt.Printf("模块 BILIBILI 收到: bot_online: %v\n", msg)
+			logger.Infof("模块 BILIBILI 收到: bot_online: %v", msg)
 		}
 	}()
 	return c.StateManager.Start()

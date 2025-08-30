@@ -231,7 +231,7 @@ func (l *Lsp) Init() {
 
 				}
 			}
-			fmt.Printf("模块 LSP 收到: bot_online: %v\n", msg)
+			log.Infof("模块 LSP 收到: bot_online: %v", msg)
 		}
 	}()
 }
