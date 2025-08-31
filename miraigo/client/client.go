@@ -48,6 +48,7 @@ type QQClient struct {
 
 	// account info
 	Online        atomic.Bool
+	oldOnline     atomic.Bool
 	Nickname      string
 	Age           uint16
 	Gender        uint16
@@ -1141,11 +1142,16 @@ func (c *QQClient) handleMetaEvent(wsmsg WebSocketMessage) {
 		}
 		stat := c.getStatus()
 		c.Online.Store(stat.Online)
+		c.oldOnline.Store(stat.Online)
 		c.alive = stat.Good
 		// BOT状态广播
-		eventbus.BusObj.Publish("bot_online", c.Online.Load())
+		go func() {
+			time.Sleep(time.Second * 5)
+			eventbus.BusObj.Publish("bot_online", c.Online.Load())
+		}()
 	case "heartbeat":
 		logger.Tracef("收到心跳，BOT是否在线：%v", wsmsg.Status.Online)
+		c.oldOnline.Store(c.Online.Load())
 		c.Online.Store(wsmsg.Status.Online)
 		c.alive = wsmsg.Status.Good
 		// BOT状态广播
@@ -2130,6 +2136,19 @@ func (c *QQClient) wsInit(ws *websocket.Conn, mode string) {
 	go c.RefreshList()
 	go c.SendLimit()
 	go c.processMessage()
+	if getOfflineQueueEnable() {
+		go func() {
+			time.Sleep(time.Second * 5)
+			for msg := range eventbus.BusObj.Subscribe("bot_online") {
+				if m, ok := msg.(bool); ok {
+					if !c.oldOnline.Load() && m {
+						c.OnReconnect()
+					}
+				}
+				logger.Debugf("模块 离线缓存 收到：bot_online: %v", msg)
+			}
+		}()
+	}
 	if mode == "ws-server" {
 		c.handleConnection(ws)
 	} else {
@@ -2192,6 +2211,7 @@ func (c *QQClient) ReloadGroupMembers() (int, error) {
 
 func (c *QQClient) SendGroupMessage(groupCode int64, m *message.SendingMessage, newstr string) SendResp {
 	if getOfflineQueueEnable() && (c == nil || !c.Online.Load()) {
+		logger.Warnf("BOT已离线，已开启离线缓存，将暂存消息: %s", SliceMessage(newstr))
 		// 暂存消息
 		saveOfflineMsg(SendMsg{
 			GroupCode: groupCode,
@@ -2218,8 +2238,9 @@ func saveOfflineMsg(MSG SendMsg) {
 
 func (c *QQClient) OnReconnect() {
 	msgs := loadOfflineMsgs()
-	expire := getOfflineQueueExpire() // 30m
+	expire := getOfflineQueueExpire()
 	now := time.Now()
+	logger.Infof("BOT已上线，开始重发缓存的 %d 条离线消息", len(msgs))
 
 	for _, msg := range msgs {
 		if now.Sub(msg.CreatedAt) <= expire {

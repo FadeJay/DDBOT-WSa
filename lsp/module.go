@@ -979,7 +979,7 @@ func (l *Lsp) sendGroupMessage(groupCode int64, msg *message.SendingMessage, rec
 			}
 		}
 	}()
-	if bot.Instance == nil || !bot.Instance.Online.Load() {
+	if bot.Instance == nil {
 		return &message.GroupMessage{Id: -1, Elements: msg.Elements}
 	}
 	if l.LspStateManager.IsMuted(groupCode, bot.Instance.Uin) {

@@ -14,7 +14,7 @@ type HackedBot struct {
 
 func (h *HackedBot) valid() bool {
 	result := true // 默认设置为 true
-	if h == nil || h.Bot == nil || *h.Bot == nil || !(*h.Bot).Online.Load() {
+	if h == nil || h.Bot == nil || *h.Bot == nil {
 		result = false
 	}
 	return result
