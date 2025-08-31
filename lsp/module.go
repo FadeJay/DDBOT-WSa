@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cnxysoft/DDBOT-WSa/lsp/eventbus"
 	"github.com/robfig/cron/v3"
 
 	"github.com/Mrs4s/MiraiGo/client"
@@ -42,6 +41,11 @@ import (
 )
 
 const ModuleName = "me.sora233.Lsp"
+
+const (
+	TargetTypeGroup = iota
+	TargetTypeFriend
+)
 
 var logger = logrus.WithField("module", ModuleName)
 
@@ -223,17 +227,6 @@ func (l *Lsp) Init() {
 		go cfg.ReloadCustomCommandPrefix()
 		l.CronjobReload()
 	})
-	go func() {
-		for msg := range eventbus.BusObj.Subscribe("bot_online") {
-			if m, ok := msg.(bool); ok {
-				online = m
-				if online {
-
-				}
-			}
-			log.Infof("模块 LSP 收到: bot_online: %v", msg)
-		}
-	}()
 }
 
 func (l *Lsp) PostInit() {
@@ -736,7 +729,7 @@ func (l *Lsp) Serve(bot *bot.Bot) {
 	})
 
 	bot.BotSendFailedEvent.Subscribe(func(qqClient *client.QQClient, event *client.BotSendFailedEvent) {
-		logger.Warnf("消息已 %d 次发送失败，尝试触发提醒模板", event.Times)
+		logger.Debugf("消息已 %d 次发送失败，尝试触发提醒模板", event.Times)
 		templateName := "notify.bot.send_failed.tmpl"
 		data := map[string]interface{}{
 			"message":     event.Message,
@@ -745,11 +738,11 @@ func (l *Lsp) Serve(bot *bot.Bot) {
 			"times":       event.Times,
 		}
 		switch event.TargetType {
-		case 0:
+		case TargetTypeGroup:
 			if gi := localutils.GetBot().FindGroup(event.TargetUin); gi != nil {
 				data["target_name"] = gi.Name
 			}
-		case 1:
+		case TargetTypeFriend:
 			if fi := localutils.GetBot().FindFriend(event.TargetUin); fi != nil {
 				data["target_name"] = fi.Nickname
 			}

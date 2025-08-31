@@ -137,7 +137,7 @@ func (c *Concern) Start() error {
 				}
 				online = m
 			}
-			logger.Infof("模块 BILIBILI 收到: bot_online: %v", msg)
+			logger.Debugf("模块 BILIBILI 收到：bot_online: %v", msg)
 		}
 	}()
 	return c.StateManager.Start()

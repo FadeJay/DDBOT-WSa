@@ -133,10 +133,13 @@ var exampleConfig = func() string {
 ### 注意，填写时请把井号及后面的内容删除，并且冒号后需要加一个空格
 bot:
   onJoinGroup: 
-    rename: "【bot】"  # BOT进群后自动改名，默认改名为“【bot】”，如果留空则不自动改名
-  sendFailureReminder:
-    enable: false  # 是否启用发送失败达到设定次数后调用notify.bot.send_failed.tmpl模板
-    times: 5  # 连续失败次数
+    rename: "【bot】"   # BOT进群后自动改名，默认改名为“【bot】”，如果留空则不自动改名
+  sendFailureReminder: # 失败提醒: 发送失败达到一定次数后触发notify.bot.send_failed.tmpl模板
+    enable: false      # 是否启用失败提醒
+    times: 3           # 失败次数阈值
+  offlineQueue:   # 离线缓存: BOT离线时暂存要发送的消息，上线后重新发送（期间不能重启DDBOT）
+    enable: false # 是否启用离线缓存
+    expire: 30m   # 离线消息有效期
 
 # 初次运行时将不使用b站帐号方便进行测试
 # 如果不使用b站帐号，则推荐订阅数不要超过5个，否则推送延迟将上升
