@@ -1,32 +1,28 @@
 syntax = "proto3";
 package weibo;
 
+import "google/protobuf/struct.proto";
+import "google/protobuf/wrappers.proto"; // 用于 StringValue 处理 JSON null
+
 option go_package = "lsp/weibo";
 
 message GenVisitorResponse {
   int64 retcode = 1;
   string msg = 2;
   message Data {
-    string tid = 1;
-    bool new_tid = 2;
-    int32 confidence = 3;
-  }
-  Data data = 3;
-}
-
-message VisitorIncarnateResponse {
-  int64 retcode = 1;
-  string msg = 2;
-  message Data {
     string sub = 1;
     string subp = 2;
+    string next = 3;
+    string alt = 4;
+    string tid = 5;
+    bool new_tid = 6;
+    int32 confidence = 7;
   }
   Data data = 3;
 }
 
 message ApiContainerGetIndexProfileResponse {
   int32 ok = 1;
-  string msg = 3;
   message Data {
     message UserInfo {
       int64 id = 1;
@@ -34,70 +30,114 @@ message ApiContainerGetIndexProfileResponse {
       string profile_image_url = 3;
       string profile_url = 4;
     }
-    UserInfo userInfo = 1;
+    UserInfo user = 1;
   }
   Data data = 2;
 }
 
 enum CardType {
-  Unknown = 0;
-  // 发文字，图文，都是9
-  Normal = 9;
+  Normal = 0;
+  Text = 1;
+  Top = 2;
 }
 
 message ApiContainerGetIndexCardsResponse {
   int32 ok = 1;
-  string msg = 3;
   message Data {
-    message CardListInfo {
-      string containerid = 1;
-      int32 v_p = 2;
-      int32 show_style = 3;
-      int32 total = 4;
-      int32 page = 5;
-    }
-    CardListInfo cardlistInfo = 1;
-    repeated Card cards = 2;
+    string since_id = 1;
+    repeated Card list = 2;
   }
   Data data = 2;
 }
 
 message Card {
-  message Mblog {
-    message Visible {
-      int64 type = 1;
-      int64 list_id = 2;
-    }
-    message Pics {
-      string pid = 1;
-      string url = 2;
-      string size = 3;
-      message Large {
-        string size = 1;
-        string url = 2;
-      }
-      Large large = 5;
-    }
-    Visible visible = 1;
-    // 可以用 time.RubyDate 解析
-    string created_at = 2;
-    string id = 3;
-    string mid = 4;
-    string text = 5;
-    int32 textLength = 6;
-    repeated string pic_ids = 7;
-    ApiContainerGetIndexProfileResponse.Data.UserInfo user = 8;
-    repeated Pics pics = 9;
-    int32 isTop = 10;
-    Mblog retweeted_status = 11;
-    string raw_text = 12;
+  message Visible {
+    int64 type = 1;
+    int64 list_id = 2;
   }
-  CardType card_type = 1;
-  string itemId = 2;
-  // 这个好像可以用来当做传送门链接
-  string scheme = 3;
-  Mblog mblog = 4;
-  bool lastWeiboCard = 5;
+
+  message PicVariant {
+    string url = 1;
+    int32 width = 2;
+    int32 height = 3;
+    int32 cut_type = 4;
+    // JSON 里可能是 null，用 StringValue 接住 null
+    google.protobuf.StringValue type = 5;
+  }
+
+  message PicInfo {
+    PicVariant thumbnail = 1;
+    PicVariant bmiddle   = 2;
+    PicVariant large     = 3;
+    PicVariant original  = 4;
+    PicVariant largest   = 5;
+    PicVariant mw2000    = 6;
+    PicVariant largecover = 7;
+
+    string object_id = 20;
+    string pic_id    = 21;
+    int32  photo_tag = 22;
+    string type      = 23;
+    string video_object_id = 24;
+    string video = 25;
+    int32  pic_status = 26;
+  }
+
+  message TitleInfo {
+    string text = 1;
+    int32 base_color = 2;
+    string icon_url = 3;
+  }
+
+  message PageInfo {
+    message MediaInfo {
+      string name = 1;
+      string stream_url = 2;
+      string stream_url_hd = 3;
+      string format = 4;
+      string author_id = 5;
+      string author_mid = 6;
+      string author_name = 7;
+      string online_users = 8;
+      int64 online_users_number = 9;
+      int64 video_publish_time = 10;
+    }
+    google.protobuf.Value type = 1;
+    string page_id = 2;
+    string object_id = 3;
+    string object_type = 4;
+    string content1 = 5;
+    string content2 = 6;
+    int32 act_status = 7;
+    MediaInfo media_info = 8;
+    string page_pic = 9;
+    string page_title = 10;
+    string short_url = 11;
+  }
+
+    message MixMediaInfo {
+      message Items {
+        string type = 1;
+        string id = 2;
+        google.protobuf.Struct data = 3;
+      }
+      repeated Items items = 1;
+    }
+
+  Visible visible = 1;
+  string created_at = 2;
+  int64 id = 3;
+  string mid = 4;
+  string text = 5;
+  int32 textLength = 6;
+  repeated string pic_ids = 7;
+  ApiContainerGetIndexProfileResponse.Data.UserInfo user = 8;
+  map<string, PicInfo> pic_infos = 9;
+  TitleInfo title = 10;
+  Card retweeted_status = 11;
+  string raw_text = 12;
+  CardType mblogtype = 13;
+  string mblogid = 14;
+  PageInfo page_info = 15;
+  MixMediaInfo mix_media_info = 16;
 }
-
-

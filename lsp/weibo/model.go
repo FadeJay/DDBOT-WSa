@@ -2,6 +2,7 @@ package weibo
 
 import (
 	"html"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -17,8 +18,8 @@ const (
 )
 
 type UserInfo struct {
-	Uid             int64  `json:"uid"`
-	Name            string `json:"name"`
+	Uid             int64  `json:"id"`
+	Name            string `json:"screen_name"`
 	ProfileImageUrl string `json:"profile_image_url"`
 	ProfileUrl      string `json:"profile_url"`
 }
@@ -108,17 +109,11 @@ func NewCacheCard(card *Card, name string) *CacheCard {
 
 func (c *CacheCard) prepare() {
 	m := mmsg.NewMSG()
-	var createdTime string
-	newsTime, err := time.Parse(time.RubyDate, c.Card.GetMblog().GetCreatedAt())
-	if err == nil {
-		createdTime = newsTime.Format("2006-01-02 15:04:05")
-	} else {
-		createdTime = c.Card.GetMblog().GetCreatedAt()
-	}
-	if c.Card.GetMblog().GetRetweetedStatus() != nil {
+	createdTime := getTimeString(c.Card.GetCreatedAt())
+	if c.Card.GetRetweetedStatus() != nil {
 		m.Textf("weibo-%v转发了%v的微博：\n%v",
 			c.Name,
-			c.Card.GetMblog().GetRetweetedStatus().GetUser().GetScreenName(),
+			c.Card.GetRetweetedStatus().GetUser().GetScreenName(),
 			createdTime,
 		)
 	} else {
@@ -127,37 +122,45 @@ func (c *CacheCard) prepare() {
 			createdTime,
 		)
 	}
-	switch c.Card.GetCardType() {
-	case CardType_Normal:
-		if len(c.Card.GetMblog().GetRawText()) > 0 {
-			rawText := parseHTML(c.Card.GetMblog().GetRawText())
+	switch c.Card.GetMblogtype() {
+	case CardType_Normal, CardType_Text, CardType_Top:
+		logger.Infof("found card_types: %v", c.Mblogtype.String())
+		if len(c.Card.GetRawText()) > 0 {
+			rawText := parseHTML(c.Card.GetRawText())
 			m.Textf("\n%v", localutils.RemoveHtmlTag(rawText))
 		} else {
-			Text := parseHTML(c.Card.GetMblog().GetText())
+			Text := parseHTML(c.Card.GetText())
 			m.Textf("\n%v", localutils.RemoveHtmlTag(Text))
 		}
-		for _, pic := range c.Card.GetMblog().GetPics() {
-			m.ImageByUrl(pic.GetLarge().GetUrl(), "")
-		}
-		if c.Card.GetMblog().GetRetweetedStatus() != nil {
-			if len(c.Card.GetMblog().GetRetweetedStatus().GetRawText()) > 0 {
-				rawText := parseHTML(c.Card.GetMblog().GetRetweetedStatus().GetRawText())
+		findPicForCard(c.Card.GetPicInfos(), m)
+		if c.Card.GetRetweetedStatus() != nil {
+			if len(c.Card.GetRetweetedStatus().GetRawText()) > 0 {
+				rawText := parseHTML(c.Card.GetRetweetedStatus().GetRawText())
 				m.Textf("\n\n原微博：\n%v", localutils.RemoveHtmlTag(rawText))
 			} else {
-				Text := parseHTML(c.Card.GetMblog().GetRetweetedStatus().GetText())
+				Text := parseHTML(c.Card.GetRetweetedStatus().GetText())
 				m.Textf("\n\n原微博：\n%v", localutils.RemoveHtmlTag(Text))
 			}
-			for _, pic := range c.Card.GetMblog().GetRetweetedStatus().GetPics() {
-				m.ImageByUrl(pic.GetLarge().GetUrl(), "")
+			if c.Card.GetRetweetedStatus().GetMixMediaInfo() != nil {
+				findPicForMix(c.Card.GetRetweetedStatus().GetMixMediaInfo().GetItems(), m)
+				findVideoForMix(c.Card.GetRetweetedStatus().GetMixMediaInfo().GetItems(), m)
 			}
+			findPicForCard(c.Card.GetRetweetedStatus().GetPicInfos(), m)
 		}
+		if c.PageInfo != nil {
+			m.ImageByUrl(c.PageInfo.GetPagePic(), "")
+			m.Textf("%s\n%s - %s\n", c.GetPageInfo().GetMediaInfo().GetName(),
+				time.Unix(c.GetPageInfo().GetMediaInfo().GetVideoPublishTime(), 0).Format(time.DateTime),
+				c.GetPageInfo().GetMediaInfo().GetOnlineUsers())
+		} else if c.Card.GetMixMediaInfo() != nil {
+			findPicForMix(c.Card.GetMixMediaInfo().GetItems(), m)
+			findVideoForMix(c.Card.GetMixMediaInfo().GetItems(), m)
+		}
+		m.Text("\n" + getWeiboUrl(c.Card.GetUser().GetId(), c.Card.Mblogid))
+		//findGifForCard(c.Card.GetPicInfos(), m)
+		//findGifForCard(c.Card.GetRetweetedStatus().GetPicInfos(), m)
 	default:
-		logger.WithField("Type", c.CardType.String()).Debug("found new card_types")
-	}
-	if idx := strings.Index(c.Card.GetScheme(), "?"); idx > 0 {
-		m.Textf("\n%v", c.Card.GetScheme()[:idx])
-	} else {
-		m.Textf("\n%v", c.Card.GetScheme())
+		logger.WithField("Type", c.Mblogtype.String()).Debug("found new card_types")
 	}
 	c.msgCache = m
 }
@@ -171,4 +174,69 @@ func parseHTML(text string) string {
 	text = strings.ReplaceAll(text, "<br />", "\n")
 	text = html.UnescapeString(text)
 	return text
+}
+
+func getWeiboUrl(uid int64, mblogId string) string {
+	return "https://weibo.com/" + strconv.FormatInt(uid, 10) + "/" + mblogId
+}
+
+func getTimeString(t string) string {
+	var ti string
+	newsTime, err := time.Parse(time.RubyDate, t)
+	if err == nil {
+		ti = newsTime.Format("2006-01-02 15:04:05")
+	} else {
+		ti = t
+	}
+	return ti
+}
+
+func findPicForCard(picInfos map[string]*Card_PicInfo, m *mmsg.MSG) {
+	for _, pic := range picInfos {
+		switch pic.Type {
+		case "pic":
+			m.ImageByUrl(pic.GetLarge().GetUrl(), "")
+		case "gif":
+			m.ImageByUrl(pic.GetOriginal().GetUrl(), "")
+		}
+	}
+}
+
+func findPicForMix(Item []*Card_MixMediaInfo_Items, m *mmsg.MSG) {
+	for _, item := range Item {
+		raw := item.Data.AsMap()
+		switch item.Type {
+		case "pic", "gif":
+			var pic Card_PicInfo
+			b, _ := json.Marshal(raw)
+			err := json.Unmarshal(b, &pic)
+			if err != nil {
+				logger.Errorf("found pic failed. %v,", err)
+			}
+			if item.Type == "gif" {
+				m.ImageByUrl(pic.GetOriginal().GetUrl(), "")
+				continue
+			}
+			m.ImageByUrl(pic.GetLarge().GetUrl(), "")
+		}
+	}
+}
+
+func findVideoForMix(Item []*Card_MixMediaInfo_Items, m *mmsg.MSG) {
+	for _, item := range Item {
+		raw := item.Data.AsMap()
+		switch item.Type {
+		case "video":
+			var video Card_PageInfo
+			b, _ := json.Marshal(raw)
+			err := json.Unmarshal(b, &video)
+			if err != nil {
+				logger.Errorf("found video failed. %v,", err)
+			}
+			m.ImageByUrl(video.GetPagePic(), "")
+			m.Textf("%s\n%s - %s\n", video.GetMediaInfo().GetName(),
+				time.Unix(video.GetMediaInfo().GetVideoPublishTime(), 0).Format(time.DateTime),
+				video.GetMediaInfo().GetOnlineUsers())
+		}
+	}
 }

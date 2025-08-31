@@ -4,13 +4,14 @@ import (
 	"github.com/cnxysoft/DDBOT-WSa/proxy_pool"
 	"github.com/cnxysoft/DDBOT-WSa/requests"
 	"github.com/cnxysoft/DDBOT-WSa/utils"
+	"github.com/guonaihong/gout"
 	"strconv"
 	"time"
 )
 
 const (
-	PathConcainerGetIndex_Profile = "https://m.weibo.cn/api/container/getIndex?containerid=100505"
-	PathContainerGetIndex_Cards   = "https://m.weibo.cn/api/container/getIndex?containerid=107603"
+	PathConcainerGetIndex_Profile = "https://weibo.com/ajax/profile/info"
+	PathContainerGetIndex_Cards   = "https://weibo.com/ajax/statuses/mymblog"
 )
 
 func ApiContainerGetIndexProfile(uid int64) (*ApiContainerGetIndexProfileResponse, error) {
@@ -19,16 +20,18 @@ func ApiContainerGetIndexProfile(uid int64) (*ApiContainerGetIndexProfileRespons
 		ed := time.Now()
 		logger.WithField("FuncName", utils.FuncName()).Tracef("cost %v", ed.Sub(st))
 	}()
-	path := PathConcainerGetIndex_Profile + strconv.FormatInt(uid, 10)
+	path := PathConcainerGetIndex_Profile
+
 	var opts []requests.Option
 	opts = append(opts,
-		requests.ProxyOption(proxy_pool.PreferNone),
+		requests.ProxyOption(proxy_pool.PreferMainland),
 		requests.AddUAOption(),
 		requests.TimeoutOption(time.Second*10),
+		requests.HeaderOption("referer", CreateReferer(uid)),
 	)
 	opts = append(opts, CookieOption()...)
 	profileResp := new(ApiContainerGetIndexProfileResponse)
-	err := requests.Get(path, nil, &profileResp, opts...)
+	err := requests.Get(path, CreateParam(uid), &profileResp, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -41,18 +44,30 @@ func ApiContainerGetIndexCards(uid int64) (*ApiContainerGetIndexCardsResponse, e
 		ed := time.Now()
 		logger.WithField("FuncName", utils.FuncName()).Tracef("cost %v", ed.Sub(st))
 	}()
-	path := PathContainerGetIndex_Cards + strconv.FormatInt(uid, 10)
+	path := PathContainerGetIndex_Cards
 	var opts []requests.Option
 	opts = append(opts,
 		requests.ProxyOption(proxy_pool.PreferNone),
 		requests.AddUAOption(),
 		requests.TimeoutOption(time.Second*10),
+		requests.HeaderOption("referer", CreateReferer(uid)),
 	)
 	opts = append(opts, CookieOption()...)
 	profileResp := new(ApiContainerGetIndexCardsResponse)
-	err := requests.Get(path, nil, &profileResp, opts...)
+	err := requests.Get(path, CreateParam(uid), &profileResp, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return profileResp, nil
+}
+
+func CreateParam(uid int64) gout.H {
+	return gout.H{
+		"uid":  strconv.FormatInt(uid, 10),
+		"page": "1",
+	}
+}
+
+func CreateReferer(uid int64) string {
+	return "https://weibo.com/u/" + strconv.FormatInt(uid, 10)
 }

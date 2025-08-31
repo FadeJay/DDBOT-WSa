@@ -85,7 +85,6 @@ func (c *Concern) Add(ctx mmsg.IMsgCtx, groupCode int64, _id interface{}, ctype 
 		}
 		if cardResp.GetOk() != 1 {
 			log.WithField("respOk", cardResp.GetOk()).
-				WithField("respMsg", cardResp.GetMsg()).
 				Errorf("ApiContainerGetIndexCards not ok")
 			return nil, fmt.Errorf("添加订阅失败 - 无法查看用户微博")
 		}
@@ -136,7 +135,6 @@ func (c *Concern) freshNews(uid int64) (*NewsInfo, error) {
 	}
 	if cardResp.GetOk() != 1 {
 		log.WithField("respOk", cardResp.GetOk()).
-			WithField("respMsg", cardResp.GetMsg()).
 			Errorf("ApiContainerGetIndexCards not ok")
 		return nil, errors.New("ApiContainerGetIndexCards not success")
 	}
@@ -151,17 +149,18 @@ func (c *Concern) freshNews(uid int64) (*NewsInfo, error) {
 		newsInfo.LatestNewsTs = lastTs
 	}
 	var replaced bool
-	for _, card := range cardResp.GetData().GetCards() {
-		replaced, err = c.MarkMblogId(card.GetMblog().GetId())
+	for _, card := range cardResp.GetData().GetList() {
+		id := strconv.FormatInt(card.GetId(), 10)
+		replaced, err = c.MarkMblogId(id)
 		if err != nil || replaced {
 			if err != nil {
-				log.WithField("mblogId", card.GetMblog().GetId()).
+				log.WithField("mblogId", card.GetId()).
 					Errorf("MarkMblogId error %v", err)
 			}
 			continue
 		}
-		if t, err := time.Parse(time.RubyDate, card.GetMblog().GetCreatedAt()); err != nil {
-			log.WithField("time_string", card.GetMblog().GetCreatedAt()).
+		if t, err := time.Parse(time.RubyDate, card.GetCreatedAt()); err != nil {
+			log.WithField("time_string", card.GetCreatedAt()).
 				Errorf("can not parse Mblog.CreatedAt %v", err)
 			continue
 		} else if lastTs > 0 && t.Unix() > lastTs {
@@ -203,15 +202,14 @@ func (c *Concern) FindUserInfo(uid int64, load bool) (*UserInfo, error) {
 		}
 		if profileResp.GetOk() != 1 {
 			logger.WithField("respOk", profileResp.GetOk()).
-				WithField("respMsg", profileResp.GetMsg()).
 				Errorf("ApiContainerGetIndexProfile not ok")
 			return nil, errors.New("接口请求失败")
 		}
 		err = c.AddUserInfo(&UserInfo{
 			Uid:             uid,
-			Name:            profileResp.GetData().GetUserInfo().GetScreenName(),
-			ProfileImageUrl: profileResp.GetData().GetUserInfo().GetProfileImageUrl(),
-			ProfileUrl:      profileResp.GetData().GetUserInfo().GetProfileUrl(),
+			Name:            profileResp.GetData().GetUser().GetScreenName(),
+			ProfileImageUrl: profileResp.GetData().GetUser().GetProfileImageUrl(),
+			ProfileUrl:      profileResp.GetData().GetUser().GetProfileUrl(),
 		})
 		if err != nil {
 			logger.WithField("uid", uid).Errorf("AddUserInfo error %v", err)
