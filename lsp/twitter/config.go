@@ -33,7 +33,7 @@ retry:
 	err := g.concern.SetGroupCompactMarkIfNotExist(notify.GetGroupCode(), notify.compactKey)
 	if localdb.IsRollback(err) {
 		notify.shouldCompact = true
-	} else if !reQuery {
+	} else if !reQuery && notify.Tweet.QuoteTweet != nil {
 		// 解决引用的时候刷屏
 		notify.compactKey = notify.Tweet.QuoteTweet.ID
 		reQuery = true
