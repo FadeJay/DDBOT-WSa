@@ -25,12 +25,19 @@ func NewGroupConcernConfig(g concern.IConfig, c *twitterConcern) *GroupConcernCo
 }
 
 func (g *GroupConcernConfig) NotifyBeforeCallback(inotify concern.Notify) {
+	reQuery := false
 	notify := inotify.(*ConcernNewsNotify)
 	// 解决一起转发的时候刷屏
 	notify.compactKey = notify.Tweet.ID
+retry:
 	err := g.concern.SetGroupCompactMarkIfNotExist(notify.GetGroupCode(), notify.compactKey)
 	if localdb.IsRollback(err) {
 		notify.shouldCompact = true
+	} else if !reQuery {
+		// 解决引用的时候刷屏
+		notify.compactKey = notify.Tweet.QuoteTweet.ID
+		reQuery = true
+		goto retry
 	}
 }
 
