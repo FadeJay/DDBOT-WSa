@@ -38,7 +38,7 @@ func UploadGroupImage(groupCode int64, img []byte, isNorm bool) (image *message.
 	return e.(*message.ImageElement), nil
 }
 
-func UploadPrivateImage(uin int64, img []byte, isNorm bool) (*message.FriendImageElement, error) {
+func UploadPrivateImage(uin int64, img []byte, isNorm bool) (*message.ImageElement, error) {
 	var err error
 	if isNorm {
 		img, err = ImageNormSize(img)
@@ -53,7 +53,7 @@ func UploadPrivateImage(uin int64, img []byte, isNorm bool) (*message.FriendImag
 	if err != nil {
 		return nil, err
 	}
-	return e.(*message.FriendImageElement), nil
+	return e.(*message.ImageElement), nil
 }
 
 const (
