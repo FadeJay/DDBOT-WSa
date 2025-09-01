@@ -299,7 +299,7 @@ func (tc *TwitCastConcern) Add(ctx mmsg.IMsgCtx, groupCode int64, id interface{}
 			case 404:
 				return nil, fmt.Errorf("找不到用户 %v", userId)
 			default:
-				return nil, fmt.Errorf(tcErr.Content.Message)
+				return nil, fmt.Errorf("%v", tcErr.Content.Message)
 			}
 		} else {
 			return nil, err

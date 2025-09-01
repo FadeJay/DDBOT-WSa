@@ -56,7 +56,7 @@ func TestConcern(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, newsInfo)
 	newsInfo.Cards = []*Card{
-		{CardType: CardType_Normal},
+		{Mblogtype: CardType_Normal},
 	}
 
 	testEventChan <- newsInfo

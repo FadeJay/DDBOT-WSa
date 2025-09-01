@@ -31,30 +31,21 @@ func TestNewsInfo(t *testing.T) {
 		LatestNewsTs: test.DynamicID1,
 		Cards: []*Card{
 			{
-				CardType: CardType_Unknown,
-				Mblog: &Card_Mblog{
-					CreatedAt: "Mon Jan 02 15:04:05 -0700 2006",
-				},
+				Mblogtype: CardType_Normal,
+				RawText:   "raw",
 			},
 			{
-				CardType: CardType_Normal,
-				Mblog: &Card_Mblog{
-					RawText: "raw",
-				},
-				Scheme: "https://localho.st?a=b",
-			},
-			{
-				CardType: CardType_Normal,
-				Mblog: &Card_Mblog{
-					Pics: []*Card_Mblog_Pics{
-						{
+				Mblogtype: CardType_Normal,
+				PicInfos: map[string]*Card_PicInfo{
+					"testpic": {
+						Large: &Card_PicVariant{
 							Url: test.FakeImage(10),
 						},
 					},
-					RetweetedStatus: &Card_Mblog{
-						User: &ApiContainerGetIndexProfileResponse_Data_UserInfo{
-							ScreenName: test.NAME2,
-						},
+				},
+				RetweetedStatus: &Card{
+					User: &ApiContainerGetIndexProfileResponse_Data_UserInfo{
+						ScreenName: test.NAME2,
 					},
 				},
 			},

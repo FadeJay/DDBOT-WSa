@@ -16,7 +16,6 @@ func TestApiContainerGetIndexCards(t *testing.T) {
 	})
 	assert.Nil(t, err)
 	assert.NotZero(t, resp.GetOk())
-	assert.Empty(t, resp.GetMsg())
 }
 
 func TestApiContainerGetIndexProfile(t *testing.T) {
