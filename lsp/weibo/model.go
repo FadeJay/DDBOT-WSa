@@ -175,7 +175,7 @@ func (c *CacheCard) prepare() {
 	default:
 		logger.WithField("Type", c.CardType.String()).Debug("found new card_types")
 	}
-	m.Text(createWeiboUrl(c.Card.GetMblog().GetUser().GetId(), c.Card.GetMblog().GetBid()))
+	m.Textf("\n%s", createWeiboUrl(c.Card.GetMblog().GetUser().GetId(), c.Card.GetMblog().GetBid()))
 	c.msgCache = m
 }
 
