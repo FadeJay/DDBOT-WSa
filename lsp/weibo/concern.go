@@ -112,6 +112,14 @@ func (c *Concern) Remove(ctx mmsg.IMsgCtx, groupCode int64, _id interface{}, cty
 	if identity == nil {
 		identity = concern.NewIdentity(_id, "unknown")
 	}
+	err = c.RemoveUserInfo(id)
+	if err != nil {
+		logger.Errorf("removeUserInfo error %v", err)
+	}
+	err = c.RemoveNewsInfo(id)
+	if err != nil {
+		logger.Errorf("removeNewsInfo error %v", err)
+	}
 	return identity, err
 }
 
