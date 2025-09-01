@@ -24,7 +24,7 @@ func ApiContainerGetIndexProfile(uid int64) (*ApiContainerGetIndexProfileRespons
 
 	var opts []requests.Option
 	opts = append(opts,
-		requests.ProxyOption(proxy_pool.PreferMainland),
+		requests.ProxyOption(proxy_pool.PreferNone),
 		requests.AddUAOption(),
 		requests.TimeoutOption(time.Second*10),
 		requests.HeaderOption("referer", CreateReferer(uid)),
