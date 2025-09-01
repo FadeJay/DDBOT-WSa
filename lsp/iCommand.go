@@ -152,9 +152,9 @@ func IList(c *MessageContext, groupCode int64, site string, opts ...any) []byte 
 					case "acfun":
 						iList.Acfun = tmpData
 					case "twitter":
-						iList.Acfun = tmpData
+						iList.Twitter = tmpData
 					case "douyin":
-						iList.Acfun = tmpData
+						iList.Douyin = tmpData
 					}
 
 				} else {

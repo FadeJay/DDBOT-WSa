@@ -68,11 +68,11 @@ func (n *ConcernNewsNotify) ToMessage() (m *mmsg.MSG) {
 		var CreatedAt time.Time
 		if n.Tweet.RtType() == RETWEET {
 			CreatedAt = time.Now().UTC()
-			m.Textf(fmt.Sprintf("X-%s转发了%s的推文：\n",
-				n.Name, n.Tweet.OrgUser.Name))
+			m.Textf("X-%s转发了%s的推文：\n",
+				n.Name, n.Tweet.OrgUser.Name)
 		} else {
 			CreatedAt = n.Tweet.CreatedAt
-			m.Textf(fmt.Sprintf("X-%s发布了新推文：\n", n.Name))
+			m.Textf("X-%s发布了新推文：\n", n.Name)
 		}
 		m.Text(CSTTime(CreatedAt).Format(time.DateTime) + "\n")
 		// msg加入推文
@@ -92,7 +92,7 @@ func (n *ConcernNewsNotify) ToMessage() (m *mmsg.MSG) {
 			CreatedAt = QuoteTweet.CreatedAt
 			// 检查是否需要插入cut
 			addCut(m, &quoteTxt)
-			m.Textf(fmt.Sprintf(quoteTxt, n.Tweet.OrgUser.Name, QuoteTweet.OrgUser.Name))
+			m.Textf(quoteTxt, n.Tweet.OrgUser.Name, QuoteTweet.OrgUser.Name)
 			m.Text(CSTTime(CreatedAt).Format(time.DateTime) + "\n")
 			// msg加入推文
 			if QuoteTweet.Content != "" {
