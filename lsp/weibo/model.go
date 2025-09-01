@@ -2,6 +2,7 @@ package weibo
 
 import (
 	"html"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -129,6 +130,7 @@ func (c *CacheCard) prepare() {
 	}
 	switch c.Card.GetCardType() {
 	case CardType_Normal:
+		var firstVideoPic bool
 		if len(c.Card.GetMblog().GetRawText()) > 0 {
 			rawText := parseHTML(c.Card.GetMblog().GetRawText())
 			m.Textf("\n%v", localutils.RemoveHtmlTag(rawText))
@@ -137,7 +139,16 @@ func (c *CacheCard) prepare() {
 			m.Textf("\n%v", localutils.RemoveHtmlTag(Text))
 		}
 		for _, pic := range c.Card.GetMblog().GetPics() {
+			if pic.GetType() == "video" && !firstVideoPic {
+				firstVideoPic = true
+				continue
+			}
 			m.ImageByUrl(pic.GetLarge().GetUrl(), "")
+		}
+		if c.Card.GetMblog().GetPageInfo() != nil && c.Card.GetMblog().GetPageInfo().GetType() == "video" {
+			m.ImageByUrl(c.Card.GetMblog().GetPageInfo().GetPagePic().GetUrl(), "")
+			m.Textf("%s - %s\n", c.Card.GetMblog().GetPageInfo().GetContent1(),
+				c.Card.GetMblog().GetPageInfo().GetPlayCount())
 		}
 		if c.Card.GetMblog().GetRetweetedStatus() != nil {
 			if len(c.Card.GetMblog().GetRetweetedStatus().GetRawText()) > 0 {
@@ -148,17 +159,23 @@ func (c *CacheCard) prepare() {
 				m.Textf("\n\n原微博：\n%v", localutils.RemoveHtmlTag(Text))
 			}
 			for _, pic := range c.Card.GetMblog().GetRetweetedStatus().GetPics() {
+				if pic.GetType() == "video" && !firstVideoPic {
+					firstVideoPic = true
+					continue
+				}
 				m.ImageByUrl(pic.GetLarge().GetUrl(), "")
+			}
+			if c.Card.GetMblog().GetRetweetedStatus().GetPageInfo() != nil &&
+				c.Card.GetMblog().GetRetweetedStatus().GetPageInfo().GetType() == "video" {
+				m.ImageByUrl(c.Card.GetMblog().GetRetweetedStatus().GetPageInfo().GetPagePic().GetUrl(), "")
+				m.Textf("%s - %s\n", c.Card.GetMblog().GetRetweetedStatus().GetPageInfo().GetContent1(),
+					c.Card.GetMblog().GetRetweetedStatus().GetPageInfo().GetPlayCount())
 			}
 		}
 	default:
 		logger.WithField("Type", c.CardType.String()).Debug("found new card_types")
 	}
-	if idx := strings.Index(c.Card.GetScheme(), "?"); idx > 0 {
-		m.Textf("\n%v", c.Card.GetScheme()[:idx])
-	} else {
-		m.Textf("\n%v", c.Card.GetScheme())
-	}
+	m.Text(createWeiboUrl(c.Card.GetMblog().GetUser().GetId(), c.Card.GetMblog().GetBid()))
 	c.msgCache = m
 }
 
@@ -171,4 +188,9 @@ func parseHTML(text string) string {
 	text = strings.ReplaceAll(text, "<br />", "\n")
 	text = html.UnescapeString(text)
 	return text
+}
+
+func createWeiboUrl(uid int64, bid string) string {
+	Uid := strconv.FormatInt(uid, 10)
+	return "https://weibo.com/" + Uid + "/" + bid
 }
