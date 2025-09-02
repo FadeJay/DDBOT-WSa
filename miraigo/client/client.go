@@ -119,6 +119,7 @@ type QQClient struct {
 	GroupDisbandEvent                 EventHandle[*GroupDisbandEvent]
 	DeleteFriendEvent                 EventHandle[*DeleteFriendEvent]
 	GroupUploadNotifyEvent            EventHandle[*GroupUploadNotifyEvent]
+	BotOnlineEvent                    EventHandle[*BotOnlineEvent]
 	BotOfflineEvent                   EventHandle[*BotOfflineEvent]
 	BotSendFailedEvent                EventHandle[*BotSendFailedEvent]
 
@@ -1154,6 +1155,10 @@ func (c *QQClient) handleMetaEvent(wsmsg WebSocketMessage) {
 		c.oldOnline.Store(c.Online.Load())
 		c.Online.Store(wsmsg.Status.Online)
 		c.alive = wsmsg.Status.Good
+		// 触发上线事件
+		if c.Online.Load() && !c.oldOnline.Load() {
+			c.BotOnlineEvent.dispatch(c, &BotOnlineEvent{})
+		}
 		// BOT状态广播
 		eventbus.BusObj.Publish("bot_online", c.Online.Load())
 		if !c.Online.Load() {

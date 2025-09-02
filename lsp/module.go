@@ -719,12 +719,21 @@ func (l *Lsp) Serve(bot *bot.Bot) {
 		}
 	})
 
+	bot.BotOnlineEvent.Subscribe(func(qqClient *client.QQClient, event *client.BotOnlineEvent) {
+		templateName := "notify.bot.online.tmpl"
+		data := map[string]interface{}{
+			"template_name": templateName,
+		}
+		logger.Debug("BOT已上线，尝试触发上线提醒模板")
+		_, _ = template.LoadAndExec(templateName, data)
+	})
+
 	bot.BotOfflineEvent.Subscribe(func(qqClient *client.QQClient, event *client.BotOfflineEvent) {
 		templateName := "notify.bot.offline.tmpl"
 		data := map[string]interface{}{
 			"template_name": templateName,
 		}
-		logger.Debug("BOT已离线，尝试触发提醒模板")
+		logger.Debug("BOT已离线，尝试触发离线提醒模板")
 		_, _ = template.LoadAndExec(templateName, data)
 	})
 
