@@ -53,6 +53,9 @@ type (
 		Receiver int64
 	}
 
+	BotOnlineEvent struct {
+	}
+
 	BotOfflineEvent struct {
 	}
 

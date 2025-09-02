@@ -479,6 +479,34 @@ func cooldown(ttlUnit string, keys ...interface{}) bool {
 	return true
 }
 
+func setCooldown(ttlUnit string, keys ...interface{}) bool {
+	ttl, err := time.ParseDuration(ttlUnit)
+	if err != nil {
+		panic(fmt.Sprintf("ParseDuration: can not parse <%v>: %v", ttlUnit, err))
+	}
+	key := localdb.NamedKey("TemplateCooldown", keys)
+	var Overwrite bool
+
+	if ttl <= 0 {
+		ttl = 5 * time.Minute
+	}
+
+	err = localdb.Set(key, "",
+		localdb.SetExpireOpt(ttl),
+		localdb.SetGetIsOverwriteOpt(&Overwrite),
+	)
+	if err == localdb.ErrRollback {
+		return false
+	} else if err != nil {
+		logger.Errorf("localdb.Set: cooldown set <%v> error %v", key, err)
+		panic(fmt.Sprintf("INTERNAL: db error"))
+	}
+	if Overwrite {
+		logger.Debugf("template: cooldown set <%v> overwrite", key)
+	}
+	return true
+}
+
 func openFile(path string) []byte {
 	data, err := os.ReadFile(path)
 	if err != nil {

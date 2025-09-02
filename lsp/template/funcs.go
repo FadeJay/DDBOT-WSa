@@ -95,6 +95,7 @@ func builtins() FuncMap {
 		"getTime":       getTime,
 		"getUnixTime":   getUnixTime,
 		"cooldown":      cooldown,
+		"setCooldown":   setCooldown,
 		"openFile":      openFile,
 		"readLine":      readLine,
 		"findReadLine":  findReadLine,
