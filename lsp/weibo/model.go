@@ -145,10 +145,18 @@ func (c *CacheCard) prepare() {
 			}
 			m.ImageByUrl(pic.GetLarge().GetUrl(), "")
 		}
-		if c.Card.GetMblog().GetPageInfo() != nil && c.Card.GetMblog().GetPageInfo().GetType() == "video" {
+		if c.Card.GetMblog().GetPageInfo() != nil {
 			m.ImageByUrl(c.Card.GetMblog().GetPageInfo().GetPagePic().GetUrl(), "")
-			m.Textf("%s - %s\n", c.Card.GetMblog().GetPageInfo().GetContent1(),
-				c.Card.GetMblog().GetPageInfo().GetPlayCount())
+			switch c.Card.GetMblog().GetPageInfo().GetType() {
+			case "video":
+				m.Textf("%s - %s\n", c.Card.GetMblog().GetPageInfo().GetContent1(),
+					c.Card.GetMblog().GetPageInfo().GetPlayCount())
+			case "article":
+				m.Textf("%s\n", c.Card.GetMblog().GetPageInfo().GetContent1())
+			default:
+				logger.WithField("Type", c.Card.GetMblog().GetPageInfo().GetType()).
+					Debugf("found new page_info_type")
+			}
 		}
 		if c.Card.GetMblog().GetRetweetedStatus() != nil {
 			if len(c.Card.GetMblog().GetRetweetedStatus().GetRawText()) > 0 {
@@ -165,11 +173,18 @@ func (c *CacheCard) prepare() {
 				}
 				m.ImageByUrl(pic.GetLarge().GetUrl(), "")
 			}
-			if c.Card.GetMblog().GetRetweetedStatus().GetPageInfo() != nil &&
-				c.Card.GetMblog().GetRetweetedStatus().GetPageInfo().GetType() == "video" {
+			if c.Card.GetMblog().GetRetweetedStatus().GetPageInfo() != nil {
 				m.ImageByUrl(c.Card.GetMblog().GetRetweetedStatus().GetPageInfo().GetPagePic().GetUrl(), "")
-				m.Textf("%s - %s\n", c.Card.GetMblog().GetRetweetedStatus().GetPageInfo().GetContent1(),
-					c.Card.GetMblog().GetRetweetedStatus().GetPageInfo().GetPlayCount())
+				switch c.Card.GetMblog().GetRetweetedStatus().GetPageInfo().GetType() {
+				case "video":
+					m.Textf("%s - %s\n", c.Card.GetMblog().GetRetweetedStatus().GetPageInfo().GetContent1(),
+						c.Card.GetMblog().GetRetweetedStatus().GetPageInfo().GetPlayCount())
+				case "article":
+					m.Textf("%s\n", c.Card.GetMblog().GetRetweetedStatus().GetPageInfo().GetContent1())
+				default:
+					logger.WithField("Type", c.Card.GetMblog().GetRetweetedStatus().GetPageInfo().GetType()).
+						Debugf("found new page_info_type")
+				}
 			}
 		}
 	default:
