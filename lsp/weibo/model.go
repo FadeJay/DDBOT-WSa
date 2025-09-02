@@ -147,18 +147,23 @@ func (c *CacheCard) prepare() {
 			}
 			findPicForCard(c.Card.GetRetweetedStatus().GetPicInfos(), m)
 		}
-		if c.PageInfo != nil {
-			m.ImageByUrl(c.PageInfo.GetPagePic(), "")
-			m.Textf("%s\n%s - %s\n", c.GetPageInfo().GetMediaInfo().GetName(),
-				time.Unix(c.GetPageInfo().GetMediaInfo().GetVideoPublishTime(), 0).Format(time.DateTime),
-				c.GetPageInfo().GetMediaInfo().GetOnlineUsers())
+		if c.GetPageInfo() != nil {
+			m.ImageByUrl(c.GetPageInfo().GetPagePic(), "")
+			switch c.GetPageInfo().GetObjectType() {
+			case "video":
+				m.Textf("%s\n%s - %s\n", c.GetPageInfo().GetMediaInfo().GetName(),
+					time.Unix(c.GetPageInfo().GetMediaInfo().GetVideoPublishTime(), 0).Format(time.DateTime),
+					c.GetPageInfo().GetMediaInfo().GetOnlineUsers())
+			case "article":
+				m.Textf("%s\n", c.GetPageInfo().GetContent1())
+			default:
+				logger.Debugf("found page_info new type: %s", c.GetPageInfo().GetObjectType())
+			}
 		} else if c.Card.GetMixMediaInfo() != nil {
 			findPicForMix(c.Card.GetMixMediaInfo().GetItems(), m)
 			findVideoForMix(c.Card.GetMixMediaInfo().GetItems(), m)
 		}
 		m.Text("\n" + getWeiboUrl(c.Card.GetUser().GetId(), c.Card.Mblogid))
-		//findGifForCard(c.Card.GetPicInfos(), m)
-		//findGifForCard(c.Card.GetRetweetedStatus().GetPicInfos(), m)
 	default:
 		logger.WithField("Type", c.Mblogtype.String()).Debug("found new card_types")
 	}
