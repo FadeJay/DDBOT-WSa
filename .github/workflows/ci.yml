@@ -15,11 +15,11 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - name: Setup Go 1.24.5
+      - name: Setup Go 1.23.4
         run: |
-          wget https://golang.org/dl/go1.24.5.linux-amd64.tar.gz
+          wget https://golang.org/dl/go1.23.4.linux-amd64.tar.gz
           sudo rm -rf /usr/local/go
-          sudo tar -C /usr/local -xzf go1.24.5.linux-amd64.tar.gz
+          sudo tar -C /usr/local -xzf go1.23.4.linux-amd64.tar.gz
           echo "/usr/local/go/bin" >> $GITHUB_PATH
           go version
       - name: Run tests
@@ -49,10 +49,10 @@ jobs:
           docker run --rm -v $PWD:/src -w /src almalinux:8 bash -c "
             # Install system dependencies
             dnf install -y wget tar make gcc gcc-c++ git ffmpeg
-            # Install Go 1.24.5
-            wget https://golang.org/dl/go1.24.5.linux-amd64.tar.gz
+            # Install Go 1.23.4
+            wget https://golang.org/dl/go1.23.4.linux-amd64.tar.gz
             rm -rf /usr/local/go
-            tar -C /usr/local -xzf go1.24.5.linux-amd64.tar.gz
+            tar -C /usr/local -xzf go1.23.4.linux-amd64.tar.gz
             export PATH=/usr/local/go/bin:$PATH
             go version
             # Update modules
