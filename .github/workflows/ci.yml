@@ -15,10 +15,13 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - name: Setup Go environment
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.23.4'
+      - name: Setup Go 1.24.5
+        run: |
+          wget https://golang.org/dl/go1.24.5.linux-amd64.tar.gz
+          sudo rm -rf /usr/local/go
+          sudo tar -C /usr/local -xzf go1.24.5.linux-amd64.tar.gz
+          echo "/usr/local/go/bin" >> $GITHUB_PATH
+          go version
       - name: Run tests
         run: go test -v -coverprofile=profile.cov ./...
       - name: go vet
@@ -31,7 +34,7 @@ jobs:
           name: coverage-report
           path: coverage.html
 
-  # Build Linux amd64 binary (GLIBC 2.28)
+  # Build Linux amd64 binary with GLIBC 2.28
   build:
     needs: test
     runs-on: ubuntu-latest
@@ -41,14 +44,23 @@ jobs:
           fetch-depth: 0
       - name: Set build time
         run: echo BUILD_TIME=$(date --rfc-3339=seconds) >> $GITHUB_ENV
-      - name: Build Linux amd64 binary in official Go 1.23 Docker
+      - name: Build Linux amd64 binary in AlmaLinux 8 Docker
         run: |
-          docker run --rm -v $PWD:/src -w /src golang:1.23.4-bullseye bash -c "
-            cd ./cmd && \
-            go mod download && \
+          docker run --rm -v $PWD:/src -w /src almalinux:8 bash -c "
+            # Install dependencies
+            dnf install -y wget tar make gcc gcc-c++ git ffmpeg
+            # Install Go 1.24.5
+            wget https://golang.org/dl/go1.24.5.linux-amd64.tar.gz
+            rm -rf /usr/local/go
+            tar -C /usr/local -xzf go1.24.5.linux-amd64.tar.gz
+            export PATH=/usr/local/go/bin:$PATH
+            go version
+            # Build project
+            cd ./cmd
+            go mod download
             GOOS=linux GOARCH=amd64 BINARY_NAME=DDBOT \
             go build -buildvcs=false -o ../\$BINARY_NAME \
-            -ldflags '-w -s -X github.com/cnxysoft/DDBOT-WSa/lsp.BuildTime=${BUILD_TIME} -X github.com/cnxysoft/DDBOT-WSa/lsp.CommitId=${GITHUB_SHA}' .
+            -ldflags \"-w -s -X github.com/cnxysoft/DDBOT-WSa/lsp.BuildTime=${BUILD_TIME} -X github.com/cnxysoft/DDBOT-WSa/lsp.CommitId=${GITHUB_SHA}\"
           "
       - name: Upload Linux amd64 binary
         uses: actions/upload-artifact@v4
