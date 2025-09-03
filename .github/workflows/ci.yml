@@ -60,15 +60,15 @@ jobs:
       - name: Set build time
         run: echo BUILD_TIME=$(date --rfc-3339=seconds) >> $GITHUB_ENV
 
-      # Linux binary in Golang CentOS 8 Docker (GLIBC 2.28)
+      # Linux binary in AlmaLinux 8 Docker (GLIBC 2.28)
       - name: Build Linux binary (GLIBC 2.28)
         if: matrix.goos == 'linux'
         run: |
-          docker run --rm -v $PWD:/src -w /src golang:1.23.4-centos8 bash -c "
-            export GOOS=linux
-            export GOARCH=${{ matrix.goarch }}
-            BINARY_NAME=DDBOT
-            [ \$GOOS = 'windows' ] && BINARY_NAME=DDBOT.exe || true
+          docker run --rm -v $PWD:/src -w /src almalinux:8 bash -c "
+            dnf install -y golang make git && \
+            export GOOS=linux && export GOARCH=${{ matrix.goarch }} && \
+            BINARY_NAME=DDBOT && \
+            [ \$GOOS = 'windows' ] && BINARY_NAME=DDBOT.exe || true && \
             go build -o \$BINARY_NAME -ldflags '-w -s -X github.com/cnxysoft/DDBOT-WSa/lsp.BuildTime=${{ env.BUILD_TIME }} -X github.com/cnxysoft/DDBOT-WSa/lsp.CommitId=${{ github.sha }}' github.com/cnxysoft/DDBOT-WSa/cmd
           "
 
