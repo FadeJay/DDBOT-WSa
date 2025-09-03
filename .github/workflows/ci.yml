@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v3
       - name: Setup Go 1.23.4
         run: |
-          wget https://golang.org/dl/go1.23.4.linux-amd64.tar.gz
+          curl -LO https://golang.org/dl/go1.23.4.linux-amd64.tar.gz
           sudo rm -rf /usr/local/go
           sudo tar -C /usr/local -xzf go1.23.4.linux-amd64.tar.gz
           echo "/usr/local/go/bin" >> $GITHUB_PATH
@@ -32,7 +32,7 @@ jobs:
           name: coverage-report
           path: coverage.html
 
-  # Build Linux amd64 binary compatible with Rocky Linux 8 + FFmpeg
+  # Build Linux amd64 binary compatible with Rocky Linux 8 + static FFmpeg
   build:
     needs: test
     runs-on: ubuntu-latest
@@ -40,22 +40,26 @@ jobs:
       - uses: actions/checkout@v3
       - name: Set build time
         run: echo BUILD_TIME=$(date --rfc-3339=seconds) >> $GITHUB_ENV
-      - name: Build Linux amd64 binary in Rocky Linux 8 Docker with FFmpeg
+      - name: Build Linux amd64 binary in Rocky Linux 8 Docker
         run: |
           docker run --rm -v $PWD:/src -w /src rockylinux:8 bash -c "
-            # 更新 yum 源
-            dnf makecache
-            dnf install -y epel-release
-            dnf install -y wget tar make gcc gcc-c++ git ffmpeg
+            # 安装基础工具
+            dnf install -y epel-release curl tar xz make gcc gcc-c++ git
 
-            # 安装 Go 1.23.4
-            wget https://golang.org/dl/go1.23.4.linux-amd64.tar.gz
+            # 下载并安装 FFmpeg 静态二进制
+            curl -LO https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz
+            tar -xf ffmpeg-release-amd64-static.tar.xz
+            cp ffmpeg-*/ffmpeg /usr/local/bin/
+            cp ffmpeg-*/ffprobe /usr/local/bin/
+
+            # 下载并安装 Go 1.23.4 官方二进制
+            curl -LO https://golang.org/dl/go1.23.4.linux-amd64.tar.gz
             rm -rf /usr/local/go
             tar -C /usr/local -xzf go1.23.4.linux-amd64.tar.gz
-            export PATH=/usr/local/go/bin:$PATH
+            export PATH=/usr/local/go/bin:\$PATH
             go version
 
-            # 更新模块依赖
+            # 更新 Go 模块依赖
             go mod tidy
             go mod download
 
