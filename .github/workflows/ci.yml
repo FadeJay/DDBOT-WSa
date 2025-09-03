@@ -14,11 +14,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # 获取完整 Git 历史
+          fetch-depth: 0
       - name: Setup Go environment
         uses: actions/setup-go@v4
         with:
-          go-version: '1.20'
+          go-version: '1.23.4'
       - name: Run tests
         run: go test -v -coverprofile=profile.cov ./...
       - name: go vet
@@ -41,9 +41,9 @@ jobs:
           fetch-depth: 0
       - name: Set build time
         run: echo BUILD_TIME=$(date --rfc-3339=seconds) >> $GITHUB_ENV
-      - name: Build Linux amd64 binary in official Go 1.20 Docker
+      - name: Build Linux amd64 binary in official Go 1.23 Docker
         run: |
-          docker run --rm -v $PWD:/src -w /src golang:1.20-bullseye bash -c "
+          docker run --rm -v $PWD:/src -w /src golang:1.23.4-bullseye bash -c "
             cd ./cmd && \
             go mod download && \
             GOOS=linux GOARCH=amd64 BINARY_NAME=DDBOT \
