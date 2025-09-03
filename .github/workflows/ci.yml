@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # 获取完整 Git 历史，避免部分 VCS 信息缺失
       - name: Setup Go environment
         uses: actions/setup-go@v4
         with:
@@ -35,6 +37,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
       - name: Set build time
         run: echo BUILD_TIME=$(date --rfc-3339=seconds) >> $GITHUB_ENV
       - name: Build Linux amd64 binary in AlmaLinux 8
@@ -43,7 +47,7 @@ jobs:
             dnf install -y golang make git && \
             export GOOS=linux && export GOARCH=amd64 && \
             BINARY_NAME=DDBOT && \
-            go build -o \$BINARY_NAME -ldflags '-w -s -X github.com/cnxysoft/DDBOT-WSa/lsp.BuildTime=${{ env.BUILD_TIME }} -X github.com/cnxysoft/DDBOT-WSa/lsp.CommitId=${{ github.sha }}' github.com/cnxysoft/DDBOT-WSa/cmd
+            go build -buildvcs=false -o \$BINARY_NAME -ldflags '-w -s -X github.com/cnxysoft/DDBOT-WSa/lsp.BuildTime=${{ env.BUILD_TIME }} -X github.com/cnxysoft/DDBOT-WSa/lsp.CommitId=${{ github.sha }}' github.com/cnxysoft/DDBOT-WSa/cmd
           "
       - name: Upload Linux amd64 binary
         uses: actions/upload-artifact@v4
