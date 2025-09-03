@@ -32,7 +32,7 @@ jobs:
           name: coverage-report
           path: coverage.html
 
-  # Build Linux amd64 binary compatible with CentOS 8 + FFmpeg
+  # Build Linux amd64 binary compatible with Rocky Linux 8 + FFmpeg
   build:
     needs: test
     runs-on: ubuntu-latest
@@ -40,17 +40,13 @@ jobs:
       - uses: actions/checkout@v3
       - name: Set build time
         run: echo BUILD_TIME=$(date --rfc-3339=seconds) >> $GITHUB_ENV
-      - name: Build Linux amd64 binary in CentOS 8 Docker with FFmpeg
+      - name: Build Linux amd64 binary in Rocky Linux 8 Docker with FFmpeg
         run: |
-          docker run --rm -v $PWD:/src -w /src centos:8 bash -c "
-            # 替换 yum 源为 Vault（可用）以避免无法解析 mirrorlist
-            sed -i 's|mirrorlist=http://mirrorlist.centos.org|#mirrorlist=http://mirrorlist.centos.org|g' /etc/yum.repos.d/CentOS-*.repo
-            sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*.repo
-            dnf clean all
+          docker run --rm -v $PWD:/src -w /src rockylinux:8 bash -c "
+            # 更新 yum 源
             dnf makecache
-
-            # 安装工具、GCC、Git 和 FFmpeg
-            dnf install -y wget tar make gcc gcc-c++ git ffmpeg epel-release
+            dnf install -y epel-release
+            dnf install -y wget tar make gcc gcc-c++ git ffmpeg
 
             # 安装 Go 1.23.4
             wget https://golang.org/dl/go1.23.4.linux-amd64.tar.gz
