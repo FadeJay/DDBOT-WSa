@@ -47,7 +47,7 @@ jobs:
       - name: Build Linux amd64 binary in AlmaLinux 8 Docker
         run: |
           docker run --rm -v $PWD:/src -w /src almalinux:8 bash -c "
-            # Install dependencies
+            # Install system dependencies
             dnf install -y wget tar make gcc gcc-c++ git ffmpeg
             # Install Go 1.24.5
             wget https://golang.org/dl/go1.24.5.linux-amd64.tar.gz
@@ -55,9 +55,11 @@ jobs:
             tar -C /usr/local -xzf go1.24.5.linux-amd64.tar.gz
             export PATH=/usr/local/go/bin:$PATH
             go version
-            # Build project
+            # Update modules
             cd ./cmd
+            go mod tidy
             go mod download
+            # Build binary
             GOOS=linux GOARCH=amd64 BINARY_NAME=DDBOT \
             go build -buildvcs=false -o ../\$BINARY_NAME \
             -ldflags \"-w -s -X github.com/cnxysoft/DDBOT-WSa/lsp.BuildTime=${BUILD_TIME} -X github.com/cnxysoft/DDBOT-WSa/lsp.CommitId=${GITHUB_SHA}\"
