@@ -8,7 +8,6 @@ on:
       - '**'
 
 jobs:
-  # Run unittest
   test:
     runs-on: ubuntu-latest
     steps:
@@ -33,7 +32,6 @@ jobs:
           name: coverage-report
           path: coverage.html
 
-  # Build Linux amd64 binary compatible with Rocky Linux 8 + static FFmpeg
   build:
     needs: test
     runs-on: ubuntu-latest
@@ -43,7 +41,7 @@ jobs:
         run: echo BUILD_TIME=$(date --rfc-3339=seconds) >> $GITHUB_ENV
       - name: Build Linux amd64 binary in Rocky Linux 8 Docker
         run: |
-          docker run --rm -v $PWD:/src -w /src rockylinux:8 bash -c "
+          docker run --rm -v $PWD:/repo -w /repo rockylinux:8 bash -c "
             # 安装基础工具
             dnf install -y epel-release curl tar xz make gcc gcc-c++ git
 
@@ -64,10 +62,9 @@ jobs:
             go mod tidy
             go mod download
 
-            # 构建二进制
+            # 构建二进制（指定 main 包路径）
             GOOS=linux GOARCH=amd64 BINARY_NAME=DDBOT \
-            go build -buildvcs=false -o ../\$BINARY_NAME \
-            -ldflags '-w -s -X github.com/cnxysoft/DDBOT-WSa/lsp.BuildTime=${BUILD_TIME} -X github.com/cnxysoft/DDBOT-WSa/lsp.CommitId=${GITHUB_SHA}'
+            go build -buildvcs=false -o ./\$BINARY_NAME ./cmd
           "
       - name: Upload Linux amd64 binary
         uses: actions/upload-artifact@v4
