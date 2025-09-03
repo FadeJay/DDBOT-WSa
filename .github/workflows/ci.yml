@@ -8,24 +8,20 @@ on:
       - '**'
 
 jobs:
-  # run unittest
+  # Run unittest
   test:
     runs-on: ubuntu-latest
-    env:
-      RUNNER_TOOL_CACHE: /toolcache
     steps:
       - uses: actions/checkout@v3
-      - name: Setup FFMPEG
-        uses: AnimMouse/setup-ffmpeg@v1
-        with:
-          version: '7.1'
-      - name: Setup Go environment
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.23.4'
-      - name: Run tests
+      - name: Setup Go 1.23.4
         run: |
-          go test -v -coverprofile=profile.cov ./...
+          wget https://golang.org/dl/go1.23.4.linux-amd64.tar.gz
+          sudo rm -rf /usr/local/go
+          sudo tar -C /usr/local -xzf go1.23.4.linux-amd64.tar.gz
+          echo "/usr/local/go/bin" >> $GITHUB_PATH
+          go version
+      - name: Run tests
+        run: go test -v -coverprofile=profile.cov ./...
       - name: go vet
         run: go vet ./...
       - name: Generate HTML report
@@ -36,32 +32,35 @@ jobs:
           name: coverage-report
           path: coverage.html
 
-  # build Linux amd64 binary only
+  # Build Linux amd64 binary compatible with CentOS 8 + FFmpeg
   build:
     needs: test
     runs-on: ubuntu-latest
-    env:
-      RUNNER_TOOL_CACHE: /toolcache
     steps:
       - uses: actions/checkout@v3
-      - name: Setup FFMPEG
-        uses: AnimMouse/setup-ffmpeg@v1
-        with:
-          version: '7.1'
-      - name: Setup Go environment
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.23.4'
-          cache-dependency-path: "**/*.sum"
       - name: Set build time
-        run: echo BUILD_TIME=$(date --rfc-3339=seconds) >> ${GITHUB_ENV}
-      - name: Build Linux amd64 binary
-        env:
-          GOOS: linux
-          GOARCH: amd64
+        run: echo BUILD_TIME=$(date --rfc-3339=seconds) >> $GITHUB_ENV
+      - name: Build Linux amd64 binary in CentOS 8 Docker with FFmpeg
         run: |
-          export BINARY_NAME="DDBOT"
-          go build -o "$BINARY_NAME" -ldflags '-w -s -X "github.com/cnxysoft/DDBOT-WSa/lsp.BuildTime=${{ env.BUILD_TIME }}" -X github.com/cnxysoft/DDBOT-WSa/lsp.CommitId=${{ github.sha }} -X github.com/cnxysoft/DDBOT-WSa/lsp.Tags=${{ env.Tags }}' github.com/cnxysoft/DDBOT-WSa/cmd
+          docker run --rm -v $PWD:/src -w /src centos:8 bash -c "
+            # Install EPEL repository for FFmpeg
+            yum install -y epel-release
+            # Install tools, GCC, Git, FFmpeg
+            yum install -y wget tar make gcc gcc-c++ git ffmpeg
+            # Install Go 1.23.4
+            wget https://golang.org/dl/go1.23.4.linux-amd64.tar.gz
+            rm -rf /usr/local/go
+            tar -C /usr/local -xzf go1.23.4.linux-amd64.tar.gz
+            export PATH=/usr/local/go/bin:$PATH
+            go version
+            # Update modules
+            go mod tidy
+            go mod download
+            # Build binary
+            GOOS=linux GOARCH=amd64 BINARY_NAME=DDBOT \
+            go build -buildvcs=false -o ../\$BINARY_NAME \
+            -ldflags '-w -s -X github.com/cnxysoft/DDBOT-WSa/lsp.BuildTime=${BUILD_TIME} -X github.com/cnxysoft/DDBOT-WSa/lsp.CommitId=${GITHUB_SHA}'
+          "
       - name: Upload Linux amd64 binary
         uses: actions/upload-artifact@v4
         with:
