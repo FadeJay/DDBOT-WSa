@@ -62,8 +62,8 @@ jobs:
             go mod tidy
             go mod download
 
-            # 构建二进制（指定 main 包路径）
-            GOOS=linux GOARCH=amd64 BINARY_NAME=DDBOT \
+            # 构建二进制（输出文件不会和源码目录冲突）
+            GOOS=linux GOARCH=amd64 BINARY_NAME=DDBOT
             go build -buildvcs=false -o ./\$BINARY_NAME ./cmd
           "
       - name: Upload Linux amd64 binary
