@@ -6,6 +6,7 @@ on:
   pull_request:
     branches:
       - '**'
+
 jobs:
   # run unittest
   test:
@@ -13,31 +14,33 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: [ '1.20' ]
+        go: [ '1.23.4' ]
 
     steps:
-      - uses: actions/setup-go@v3
+      - uses: actions/checkout@v3
+      - name: Setup Go environment
+        uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.go }}
-      - uses: actions/checkout@v3
-      - run: go test -v -coverprofile=profile.cov ./...
+      - name: Run tests
+        run: go test -v -coverprofile=profile.cov ./...
       - name: go vet
-        run: |
-          go vet ./...
-      - name: Send coverage
-        uses: shogo82148/actions-goveralls@v1
+        run: go vet ./...
+      - name: Generate HTML report
+        run: go tool cover -html=profile.cov -o coverage.html
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
         with:
-          path-to-profile: profile.cov
-          flag-name: Go-${{ matrix.go }}
-          parallel: true
+          name: coverage-report
+          path: coverage.html
 
   # build binary
   build:
     needs: test
-    name: Build binary CI
     runs-on: ubuntu-latest
     strategy:
       matrix:
+        go: [ '1.23.4' ]
         goos: [ linux, windows, darwin ]
         goarch: [ "386", amd64, arm, arm64 ]
         exclude:
@@ -46,38 +49,43 @@ jobs:
           - goos: darwin
             goarch: "386"
       fail-fast: true
+
     steps:
       - uses: actions/checkout@v3
       - name: Setup Go environment
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
-          go-version: '1.20'
-      - name: Set env
+          go-version: ${{ matrix.go }}
+          cache-dependency-path: "**/*.sum"
+
+      - name: Set build time
+        run: echo BUILD_TIME=$(date --rfc-3339=seconds) >> ${GITHUB_ENV}
+
+      - name: Build Linux binary (GLIBC 2.28)
+        if: matrix.goos == 'linux'
         run: |
-          echo BUILD_TIME=$(date --rfc-3339=seconds) >> ${GITHUB_ENV}
-      - name: Build binary file
+          docker run --rm -v $PWD:/src -w /src centos:8 \
+          bash -c "dnf install -y golang make git && \
+          export GOOS=linux && export GOARCH=${{ matrix.goarch }} && \
+          BINARY_NAME=DDBOT && \
+          [ \$GOOS = 'windows' ] && BINARY_NAME=DDBOT.exe || true && \
+          go build -o \$BINARY_NAME -ldflags '-w -s -X github.com/cnxysoft/DDBOT-WSa/lsp.BuildTime=${{ env.BUILD_TIME }} -X github.com/cnxysoft/DDBOT-WSa/lsp.CommitId=${{ github.sha }}' github.com/cnxysoft/DDBOT-WSa/cmd"
+
+      - name: Build Windows/macOS binaries
+        if: matrix.goos != 'linux'
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
-          export BINARY_NAME="DDBOT"
-          if [ $GOOS = "windows" ]; then export BINARY_NAME="$BINARY_NAME.exe"; fi
-          go build -o "$BINARY_NAME" -ldflags '-w -s -X "github.com/Sora233/DDBOT/lsp.BuildTime=${{ env.BUILD_TIME }}" -X github.com/Sora233/DDBOT/lsp.CommitId=${{ github.sha }} -X github.com/Sora233/DDBOT/lsp.Tags=${{ env.Tags }}' github.com/Sora233/DDBOT/cmd
+          BINARY_NAME=DDBOT
+          [ $GOOS = "windows" ] && BINARY_NAME=DDBOT.exe
+          go build -o "$BINARY_NAME" -ldflags '-w -s -X github.com/cnxysoft/DDBOT-WSa/lsp.BuildTime=${{ env.BUILD_TIME }} -X github.com/cnxysoft/DDBOT-WSa/lsp.CommitId=${{ github.sha }}' github.com/cnxysoft/DDBOT-WSa/cmd
+
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         if: ${{ !github.head_ref }}
         with:
           name: ${{ matrix.goos }}_${{ matrix.goarch }}
           path: |
             ./DDBOT
             ./DDBOT.exe
-
-
-  # notifies that all test jobs are finished.
-  finish:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: shogo82148/actions-goveralls@v1
-        with:
-          parallel-finished: true
