@@ -43,20 +43,27 @@ jobs:
       - name: Build Linux amd64 binary in CentOS 8 Docker with FFmpeg
         run: |
           docker run --rm -v $PWD:/src -w /src centos:8 bash -c "
-            # Install EPEL repository for FFmpeg
-            yum install -y epel-release
-            # Install tools, GCC, Git, FFmpeg
-            yum install -y wget tar make gcc gcc-c++ git ffmpeg
-            # Install Go 1.23.4
+            # 替换 yum 源为 Vault（可用）以避免无法解析 mirrorlist
+            sed -i 's|mirrorlist=http://mirrorlist.centos.org|#mirrorlist=http://mirrorlist.centos.org|g' /etc/yum.repos.d/CentOS-*.repo
+            sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*.repo
+            dnf clean all
+            dnf makecache
+
+            # 安装工具、GCC、Git 和 FFmpeg
+            dnf install -y wget tar make gcc gcc-c++ git ffmpeg epel-release
+
+            # 安装 Go 1.23.4
             wget https://golang.org/dl/go1.23.4.linux-amd64.tar.gz
             rm -rf /usr/local/go
             tar -C /usr/local -xzf go1.23.4.linux-amd64.tar.gz
             export PATH=/usr/local/go/bin:$PATH
             go version
-            # Update modules
+
+            # 更新模块依赖
             go mod tidy
             go mod download
-            # Build binary
+
+            # 构建二进制
             GOOS=linux GOARCH=amd64 BINARY_NAME=DDBOT \
             go build -buildvcs=false -o ../\$BINARY_NAME \
             -ldflags '-w -s -X github.com/cnxysoft/DDBOT-WSa/lsp.BuildTime=${BUILD_TIME} -X github.com/cnxysoft/DDBOT-WSa/lsp.CommitId=${GITHUB_SHA}'
