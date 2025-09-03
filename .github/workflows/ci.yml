@@ -1,49 +1,3 @@
-name: "CI"
-
-on:
-  push:
-    branches:
-      - '**'
-    tags:
-      - 'v*.*.*'   # 打 tag 时触发 release job
-  pull_request:
-    branches:
-      - '**'
-
-jobs:
-  # run unittest
-  test:
-    runs-on: ubuntu-latest
-    env:
-      RUNNER_TOOL_CACHE: /toolcache
-    strategy:
-      fail-fast: false
-      matrix:
-        go: [ '1.23.4' ]
-
-    steps:
-      - uses: actions/checkout@v3
-      - name: Setup FFMPEG
-        uses: AnimMouse/setup-ffmpeg@v1
-        with:
-          version: '7.1'
-      - name: Setup Go environment
-        uses: actions/setup-go@v4
-        with:
-          go-version: ${{ matrix.go }}
-      - name: Run tests
-        run: go test -v -coverprofile=profile.cov ./...
-      - name: go vet
-        run: go vet ./...
-      - name: Generate HTML report
-        run: go tool cover -html=profile.cov -o coverage.html
-      - name: Upload as coverage
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage.html
-
-  # build binary
   build:
     needs: test
     name: Build binary CI
@@ -75,35 +29,32 @@ jobs:
       - name: Set env
         run: |
           echo BUILD_TIME=$(date --rfc-3339=seconds) >> ${GITHUB_ENV}
-
-      - name: Install musl (for static Linux build)
-        if: matrix.goos == 'linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y musl musl-dev musl-tools
-
       - name: Build binary file
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
-          if [ $GOOS = "windows" ]; then
-            export BINARY_NAME="DDBOT.exe"
-            go build -o "$BINARY_NAME" \
-              -ldflags '-w -s -X "github.com/cnxysoft/DDBOT-WSa/lsp.BuildTime=${{ env.BUILD_TIME }}" -X github.com/cnxysoft/DDBOT-WSa/lsp.CommitId=${{ github.sha }} -X github.com/cnxysoft/DDBOT-WSa/lsp.Tags=${{ env.Tags }}' \
-              github.com/cnxysoft/DDBOT-WSa/cmd
-          elif [ $GOOS = "linux" ]; then
-            export BINARY_NAME="DDBOT-musl"
-            CC=musl-gcc go build -o "$BINARY_NAME" \
-              -ldflags '-w -s -extldflags "-static" -X "github.com/cnxysoft/DDBOT-WSa/lsp.BuildTime=${{ env.BUILD_TIME }}" -X github.com/cnxysoft/DDBOT-WSa/lsp.CommitId=${{ github.sha }} -X github.com/cnxysoft/DDBOT-WSa/lsp.Tags=${{ env.Tags }}' \
+          export BINARY_NAME="DDBOT"
+          if [ $GOOS = "windows" ]; then export BINARY_NAME="$BINARY_NAME.exe"; fi
+          
+          # Linux 静态 musl 构建
+          if [ $GOOS = "linux" ]; then
+            go install github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+            CGO_ENABLED=1 CC=musl-gcc go build -o "$BINARY_NAME-musl" \
+              -ldflags '-w -s -extldflags "-static" \
+              -X "github.com/cnxysoft/DDBOT-WSa/lsp.BuildTime=${{ env.BUILD_TIME }}" \
+              -X github.com/cnxysoft/DDBOT-WSa/lsp.CommitId=${{ github.sha }} \
+              -X github.com/cnxysoft/DDBOT-WSa/lsp.Tags=${{ env.Tags }}' \
               github.com/cnxysoft/DDBOT-WSa/cmd
           else
-            export BINARY_NAME="DDBOT"
+            # 其他平台正常构建
             go build -o "$BINARY_NAME" \
-              -ldflags '-w -s -X "github.com/cnxysoft/DDBOT-WSa/lsp.BuildTime=${{ env.BUILD_TIME }}" -X github.com/cnxysoft/DDBOT-WSa/lsp.CommitId=${{ github.sha }} -X github.com/cnxysoft/DDBOT-WSa/lsp.Tags=${{ env.Tags }}' \
+              -ldflags '-w -s \
+              -X "github.com/cnxysoft/DDBOT-WSa/lsp.BuildTime=${{ env.BUILD_TIME }}" \
+              -X github.com/cnxysoft/DDBOT-WSa/lsp.CommitId=${{ github.sha }} \
+              -X github.com/cnxysoft/DDBOT-WSa/lsp.Tags=${{ env.Tags }}' \
               github.com/cnxysoft/DDBOT-WSa/cmd
           fi
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         if: ${{ !github.head_ref }}
@@ -113,25 +64,3 @@ jobs:
             ./DDBOT
             ./DDBOT.exe
             ./DDBOT-musl
-
-  # release job
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: ./artifacts
-      - name: Display structure
-        run: ls -R ./artifacts
-      - name: Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            ./artifacts/**/DDBOT
-            ./artifacts/**/DDBOT.exe
-            ./artifacts/**/DDBOT-musl
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
