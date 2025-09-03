@@ -8,30 +8,23 @@ on:
       - '**'
 
 jobs:
-  # Run unittest
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # 获取完整 Git 历史
-      - name: Setup Go environment
-        uses: actions/setup-go@v4
+          fetch-depth: 0
+      - uses: actions/setup-go@v4
         with:
           go-version: '1.23.4'
-      - name: Run tests
-        run: go test -v -coverprofile=profile.cov ./...
-      - name: go vet
-        run: go vet ./...
-      - name: Generate HTML report
-        run: go tool cover -html=profile.cov -o coverage.html
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+      - run: go test -v -coverprofile=profile.cov ./...
+      - run: go vet ./...
+      - run: go tool cover -html=profile.cov -o coverage.html
+      - uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: coverage.html
 
-  # Build Linux amd64 binary (GLIBC 2.28)
   build:
     needs: test
     runs-on: ubuntu-latest
@@ -39,19 +32,19 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - name: Set build time
-        run: echo BUILD_TIME=$(date --rfc-3339=seconds) >> $GITHUB_ENV
-      - name: Build Linux amd64 binary in AlmaLinux 8
+      - run: echo BUILD_TIME=$(date --rfc-3339=seconds) >> $GITHUB_ENV
+      - name: Build Linux amd64 binary
         run: |
           docker run --rm -v $PWD:/src -w /src almalinux:8 bash -c "
             dnf install -y golang make git && \
-            export GOOS=linux && export GOARCH=amd64 && \
-            BINARY_NAME=DDBOT && \
-            cd ./cmd && \
-            go build -buildvcs=false -o ../\$BINARY_NAME -ldflags '-w -s -X github.com/cnxysoft/DDBOT-WSa/lsp.BuildTime=${BUILD_TIME} -X github.com/cnxysoft/DDBOT-WSa/lsp.CommitId=${GITHUB_SHA}' .
+            cd /src && \
+            go mod download && \
+            cd cmd && \
+            GOOS=linux GOARCH=amd64 BINARY_NAME=DDBOT \
+            go build -buildvcs=false -o ../\$BINARY_NAME \
+            -ldflags '-w -s -X github.com/cnxysoft/DDBOT-WSa/lsp.BuildTime=${BUILD_TIME} -X github.com/cnxysoft/DDBOT-WSa/lsp.CommitId=${GITHUB_SHA}' .
           "
-      - name: Upload Linux amd64 binary
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: linux_amd64
           path: ./DDBOT
