@@ -1,66 +1,35 @@
+name: "Build musl static binary"
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - "**"
+
+jobs:
   build:
-    needs: test
-    name: Build binary CI
     runs-on: ubuntu-latest
-    env:
-      RUNNER_TOOL_CACHE: /toolcache
-    strategy:
-      matrix:
-        go: [ '1.23.4' ]
-        goos: [ linux, windows, darwin ]
-        goarch: [ "386", amd64, arm, arm64 ]
-        exclude:
-          - goos: darwin
-            goarch: arm
-          - goos: darwin
-            goarch: "386"
-      fail-fast: true
     steps:
       - uses: actions/checkout@v3
-      - name: Setup FFMPEG
-        uses: AnimMouse/setup-ffmpeg@v1
-        with:
-          version: '7.1'
-      - name: Setup Go environment
+      - name: Setup Go
         uses: actions/setup-go@v4
         with:
-          go-version: ${{ matrix.go }}
-          cache-dependency-path: "**/*.sum"
-      - name: Set env
+          go-version: '1.23.4'
+      - name: Install musl tools
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - name: Build static musl binary
         run: |
-          echo BUILD_TIME=$(date --rfc-3339=seconds) >> ${GITHUB_ENV}
-      - name: Build binary file
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-        run: |
-          export BINARY_NAME="DDBOT"
-          if [ $GOOS = "windows" ]; then export BINARY_NAME="$BINARY_NAME.exe"; fi
-          
-          # Linux 静态 musl 构建
-          if [ $GOOS = "linux" ]; then
-            go install github.com/golang-migrate/migrate/v4/cmd/migrate@latest
-            CGO_ENABLED=1 CC=musl-gcc go build -o "$BINARY_NAME-musl" \
-              -ldflags '-w -s -extldflags "-static" \
-              -X "github.com/cnxysoft/DDBOT-WSa/lsp.BuildTime=${{ env.BUILD_TIME }}" \
-              -X github.com/cnxysoft/DDBOT-WSa/lsp.CommitId=${{ github.sha }} \
-              -X github.com/cnxysoft/DDBOT-WSa/lsp.Tags=${{ env.Tags }}' \
-              github.com/cnxysoft/DDBOT-WSa/cmd
-          else
-            # 其他平台正常构建
-            go build -o "$BINARY_NAME" \
-              -ldflags '-w -s \
-              -X "github.com/cnxysoft/DDBOT-WSa/lsp.BuildTime=${{ env.BUILD_TIME }}" \
-              -X github.com/cnxysoft/DDBOT-WSa/lsp.CommitId=${{ github.sha }} \
-              -X github.com/cnxysoft/DDBOT-WSa/lsp.Tags=${{ env.Tags }}' \
-              github.com/cnxysoft/DDBOT-WSa/cmd
-          fi
+          CGO_ENABLED=1 CC=musl-gcc go build -o DDBOT-musl \
+            -ldflags '-w -s -extldflags "-static" \
+            -X "github.com/cnxysoft/DDBOT-WSa/lsp.BuildTime=$(date --rfc-3339=seconds)" \
+            -X github.com/cnxysoft/DDBOT-WSa/lsp.CommitId=${{ github.sha }}' \
+            github.com/cnxysoft/DDBOT-WSa/cmd
+      - name: Check binary type
+        run: file ./DDBOT-musl
       - name: Upload artifact
         uses: actions/upload-artifact@v4
-        if: ${{ !github.head_ref }}
         with:
-          name: ${{ matrix.goos }}_${{ matrix.goarch }}
-          path: |
-            ./DDBOT
-            ./DDBOT.exe
-            ./DDBOT-musl
+          name: DDBOT-musl
+          path: ./DDBOT-musl
