@@ -11,17 +11,12 @@ jobs:
   # Run unittest
   test:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        go: ['1.23.4']
-
     steps:
       - uses: actions/checkout@v3
       - name: Setup Go environment
         uses: actions/setup-go@v4
         with:
-          go-version: ${{ matrix.go }}
+          go-version: '1.23.4'
       - name: Run tests
         run: go test -v -coverprofile=profile.cov ./...
       - name: go vet
@@ -34,61 +29,24 @@ jobs:
           name: coverage-report
           path: coverage.html
 
-  # Build binary
+  # Build Linux amd64 binary (GLIBC 2.28)
   build:
     needs: test
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        go: ['1.23.4']
-        goos: [linux, windows, darwin]
-        goarch: ["386", amd64, arm, arm64]
-        exclude:
-          - goos: darwin
-            goarch: arm
-          - goos: darwin
-            goarch: "386"
-      fail-fast: true
-
     steps:
       - uses: actions/checkout@v3
-      - name: Setup Go environment
-        uses: actions/setup-go@v4
-        with:
-          go-version: ${{ matrix.go }}
-
       - name: Set build time
         run: echo BUILD_TIME=$(date --rfc-3339=seconds) >> $GITHUB_ENV
-
-      # Linux binary in AlmaLinux 8 Docker (GLIBC 2.28)
-      - name: Build Linux binary (GLIBC 2.28)
-        if: matrix.goos == 'linux'
+      - name: Build Linux amd64 binary in AlmaLinux 8
         run: |
           docker run --rm -v $PWD:/src -w /src almalinux:8 bash -c "
             dnf install -y golang make git && \
-            export GOOS=linux && export GOARCH=${{ matrix.goarch }} && \
+            export GOOS=linux && export GOARCH=amd64 && \
             BINARY_NAME=DDBOT && \
-            [ \$GOOS = 'windows' ] && BINARY_NAME=DDBOT.exe || true && \
             go build -o \$BINARY_NAME -ldflags '-w -s -X github.com/cnxysoft/DDBOT-WSa/lsp.BuildTime=${{ env.BUILD_TIME }} -X github.com/cnxysoft/DDBOT-WSa/lsp.CommitId=${{ github.sha }}' github.com/cnxysoft/DDBOT-WSa/cmd
           "
-
-      # Windows/macOS binaries
-      - name: Build Windows/macOS binaries
-        if: matrix.goos != 'linux'
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-        run: |
-          BINARY_NAME=DDBOT
-          [ $GOOS = "windows" ] && BINARY_NAME=DDBOT.exe
-          go build -o "$BINARY_NAME" -ldflags '-w -s -X github.com/cnxysoft/DDBOT-WSa/lsp.BuildTime=${{ env.BUILD_TIME }} -X github.com/cnxysoft/DDBOT-WSa/lsp.CommitId=${{ github.sha }}' github.com/cnxysoft/DDBOT-WSa/cmd
-
-      # Upload artifacts
-      - name: Upload artifact
+      - name: Upload Linux amd64 binary
         uses: actions/upload-artifact@v4
-        if: ${{ !github.head_ref }}
         with:
-          name: ${{ matrix.goos }}_${{ matrix.goarch }}
-          path: |
-            ./DDBOT
-            ./DDBOT.exe
+          name: linux_amd64
+          path: ./DDBOT
