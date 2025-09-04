@@ -74,6 +74,7 @@ type UserStat struct {
 type UserInfo struct {
 	Mid     int64  `json:"mid"`
 	Name    string `json:"name"`
+	Face    string `json:"face"`
 	RoomId  int64  `json:"room_id"`
 	RoomUrl string `json:"room_url"`
 
@@ -194,11 +195,12 @@ func NewUserStat(mid, following, follower int64) *UserStat {
 	}
 }
 
-func NewUserInfo(mid, roomId int64, name, url string) *UserInfo {
+func NewUserInfo(mid, roomId int64, name, url, face string) *UserInfo {
 	return &UserInfo{
 		Mid:     mid,
 		RoomId:  roomId,
 		Name:    name,
+		Face:    face,
 		RoomUrl: url,
 	}
 }

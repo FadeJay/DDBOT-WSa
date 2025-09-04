@@ -72,6 +72,7 @@ message XSpaceAccInfoResponse {
   message Data {
     int64 mid = 1;
     string name = 2;
+    string face = 3;
     int32 level = 7;
     message LiveRoom {
       RoomStatus roomStatus = 1;

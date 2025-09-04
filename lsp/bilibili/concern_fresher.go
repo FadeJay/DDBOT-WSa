@@ -126,7 +126,7 @@ func (c *Concern) fresh() concern.FreshFunc {
 							continue
 						}
 						selfLiveInfo := NewLiveInfo(
-							NewUserInfo(mid, resp.Data.RoomId, resp2.GetName(), resp.GetUrl()),
+							NewUserInfo(mid, resp.Data.RoomId, resp2.GetName(), resp.GetUrl(), selfInfo.Face),
 							resp.GetTitle(),
 							resp.GetCover(),
 							resp.GetLiveStatus(),
@@ -392,7 +392,7 @@ func (c *Concern) freshLive() ([]*LiveInfo, error) {
 			}
 			infoSet[l.GetUid()] = true
 			info := NewLiveInfo(
-				NewUserInfo(l.GetUid(), l.GetRoomid(), l.GetUname(), l.GetLink()),
+				NewUserInfo(l.GetUid(), l.GetRoomid(), l.GetUname(), l.GetLink(), l.GetFace()),
 				l.GetTitle(),
 				l.GetPic(),
 				LiveStatus_Living,
