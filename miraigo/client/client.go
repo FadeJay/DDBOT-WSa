@@ -1150,6 +1150,9 @@ func (c *QQClient) handleMetaEvent(wsmsg WebSocketMessage) {
 			time.Sleep(time.Second * 5)
 			eventbus.BusObj.Publish("bot_online", c.Online.Load())
 		}()
+		if c.Online.Load() && len(offlineQueue) > 0 {
+			c.OnReconnect()
+		}
 	case "heartbeat":
 		logger.Tracef("收到心跳，BOT是否在线：%v", wsmsg.Status.Online)
 		c.oldOnline.Store(c.Online.Load())
