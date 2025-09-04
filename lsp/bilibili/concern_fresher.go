@@ -328,6 +328,7 @@ func (c *Concern) freshDynamicNew() ([]*NewsInfo, error) {
 		if len(cards) > 0 {
 			// 如果更新了名字，有机会在这里捞回来
 			userInfo.Name = cards[0].GetDesc().GetUserProfile().GetInfo().GetUname()
+			userInfo.Face = cards[0].GetDesc().GetUserProfile().GetInfo().GetFace()
 		}
 		if len(cards) > 3 {
 			// 有时候b站抽风会刷屏
