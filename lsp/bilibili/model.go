@@ -450,110 +450,130 @@ func NewCacheCard(card *Card) *CacheCard {
 }
 
 type DynamicInfo struct {
-	Type        DynamicDescType
-	Id          string
-	WithOrigin  bool
-	OriginDyId  string
-	OriginDyUrl string
-	Date        string
-	Content     string
-	Title       string
-	DynamicUrl  string
-	User        struct {
-		Uid  int64
-		Name string
-		Face string
-	}
+	Type        DynamicDescType `json:"type"`
+	Id          string          `json:"id"`
+	WithOrigin  bool            `json:"with_origin"`
+	OriginDyId  string          `json:"origin_dy_id"`
+	OriginDyUrl string          `json:"origin_dy_url"`
+	Date        string          `json:"date"`
+	Content     string          `json:"content"`
+	Title       string          `json:"title"`
+	DynamicUrl  string          `json:"dynamic_url"`
+
+	User struct {
+		Uid  int64  `json:"uid"`
+		Name string `json:"name"`
+		Face string `json:"face"`
+	} `json:"user"`
+
 	OriginUser struct {
-		Uid  int64  `json:",omitempty"`
-		Name string `json:",omitempty"`
-		Face string `json:",omitempty"`
-	}
+		Uid  int64  `json:"uid,omitempty"`
+		Name string `json:"name,omitempty"`
+		Face string `json:"face,omitempty"`
+	} `json:"origin_user,omitempty"`
+
 	Image struct {
-		ImageUrls   []string `json:",omitempty"`
+		ImageUrls   []string `json:"image_urls,omitempty"`
 		Bytes       []byte   `json:"-"`
-		Description string   `json:",omitempty"`
-	}
+		Description string   `json:"description,omitempty"`
+	} `json:"image,omitempty"`
+
 	Text struct {
-		Content string `json:",omitempty"`
-	}
+		Content string `json:"content,omitempty"`
+	} `json:"text,omitempty"`
+
 	Video struct {
-		Title    string `json:",omitempty"`
-		Desc     string `json:",omitempty"`
-		CoverUrl string `json:",omitempty"`
-		Action   string `json:",omitempty"`
-	}
+		Title    string `json:"title,omitempty"`
+		Desc     string `json:"desc,omitempty"`
+		Dynamic  string `json:"dynamic,omitempty"`
+		CoverUrl string `json:"cover_url,omitempty"`
+		Action   string `json:"action,omitempty"`
+	} `json:"video,omitempty"`
+
 	Post struct {
-		Title     string   `json:",omitempty"`
-		Summary   string   `json:",omitempty"`
-		ImageUrls []string `json:",omitempty"`
-	}
+		Title     string   `json:"title,omitempty"`
+		Summary   string   `json:"summary,omitempty"`
+		ImageUrls []string `json:"image_urls,omitempty"`
+	} `json:"post,omitempty"`
+
 	Music struct {
-		Title    string `json:",omitempty"`
-		Intro    string `json:",omitempty"`
-		CoverUrl string `json:",omitempty"`
-		Author   string `json:",omitempty"`
-	}
+		Title    string `json:"title,omitempty"`
+		Intro    string `json:"intro,omitempty"`
+		CoverUrl string `json:"cover_url,omitempty"`
+		Author   string `json:"author,omitempty"`
+	} `json:"music,omitempty"`
+
 	Sketch struct {
-		Content  string `json:",omitempty"`
-		Title    string `json:",omitempty"`
-		DescText string `json:",omitempty"`
-		CoverUrl string `json:",omitempty"`
-	}
+		Content  string `json:"content,omitempty"`
+		Title    string `json:"title,omitempty"`
+		DescText string `json:"desc_text,omitempty"`
+		CoverUrl string `json:"cover_url,omitempty"`
+	} `json:"sketch,omitempty"`
+
 	Live struct {
-		Title    string `json:",omitempty"`
-		CoverUrl string `json:",omitempty"`
-	}
+		Title    string `json:"title,omitempty"`
+		CoverUrl string `json:"cover_url,omitempty"`
+	} `json:"live,omitempty"`
+
 	MyList struct {
-		Title    string `json:",omitempty"`
-		CoverUrl string `json:",omitempty"`
-	}
+		Title    string `json:"title,omitempty"`
+		CoverUrl string `json:"cover_url,omitempty"`
+	} `json:"my_list,omitempty"`
+
 	Miss struct {
-		Tips string `json:",omitempty"`
-	}
+		Tips string `json:"tips,omitempty"`
+	} `json:"miss,omitempty"`
+
 	Course struct {
-		Name     string `json:",omitempty"`
-		Badge    string `json:",omitempty"`
-		Title    string `json:",omitempty"`
-		CoverUrl string `json:",omitempty"`
-	}
+		Name     string `json:"name,omitempty"`
+		Badge    string `json:"badge,omitempty"`
+		Title    string `json:"title,omitempty"`
+		CoverUrl string `json:"cover_url,omitempty"`
+	} `json:"course,omitempty"`
+
 	Default struct {
-		TypeName string `json:",omitempty"`
-		Title    string `json:",omitempty"`
-		Desc     string `json:",omitempty"`
-		CoverUrl string `json:",omitempty"`
-	}
-	Addons []Addon `json:",omitempty"`
+		TypeName string `json:"type_name,omitempty"`
+		Title    string `json:"title,omitempty"`
+		Desc     string `json:"desc,omitempty"`
+		CoverUrl string `json:"cover_url,omitempty"`
+	} `json:"default,omitempty"`
+
+	Addons []Addon `json:"addons,omitempty"`
 }
 
 type Addon struct {
-	Type  AddOnCardShowType
+	Type AddOnCardShowType `json:"type"`
+
 	Goods struct {
-		AdMark   string `json:",omitempty"`
-		Name     string `json:",omitempty"`
-		ImageUrl string `json:",omitempty"`
-	}
+		AdMark   string `json:"ad_mark,omitempty"`
+		Name     string `json:"name,omitempty"`
+		ImageUrl string `json:"image_url,omitempty"`
+	} `json:"goods,omitempty"`
+
 	Reserve struct {
-		Title   string `json:",omitempty"`
-		Desc    string `json:",omitempty"`
-		Lottery string `json:",omitempty"`
-	}
+		Title   string `json:"title,omitempty"`
+		Desc    string `json:"desc,omitempty"`
+		Lottery string `json:"lottery,omitempty"`
+	} `json:"reserve,omitempty"`
+
 	Related struct {
-		Type     string `json:",omitempty"`
-		HeadText string `json:",omitempty"`
-		Title    string `json:",omitempty"`
-		Desc     string `json:",omitempty"`
-	}
+		Type     string `json:"type,omitempty"`
+		HeadText string `json:"head_text,omitempty"`
+		Title    string `json:"title,omitempty"`
+		Desc     string `json:"desc,omitempty"`
+	} `json:"related,omitempty"`
+
 	Vote struct {
-		Index []int32  `json:",omitempty"`
-		Desc  []string `json:",omitempty"`
-	}
+		Index []int32  `json:"index,omitempty"`
+		Desc  []string `json:"desc,omitempty"`
+	} `json:"vote,omitempty"`
+
 	Video struct {
-		Title    string `json:",omitempty"`
-		CoverUrl string `json:",omitempty"`
-		Desc     string `json:",omitempty"`
-		PlayUrl  string `json:",omitempty"`
-	}
+		Title    string `json:"title,omitempty"`
+		CoverUrl string `json:"cover_url,omitempty"`
+		Desc     string `json:"desc,omitempty"`
+		PlayUrl  string `json:"play_url,omitempty"`
+	} `json:"video,omitempty"`
 }
 
 func (c *CacheCard) prepare() {
@@ -639,7 +659,9 @@ func (c *CacheCard) prepare() {
 			}
 			c.dynamic.Video.Title = origin.GetTitle()
 			c.dynamic.Video.Desc = origin.GetDesc()
+			c.dynamic.Video.Dynamic = origin.GetDynamic()
 			c.dynamic.Video.CoverUrl = origin.GetPic()
+			c.dynamic.Video.Action = c.Card.GetDisplay().GetOrigin().GetUsrActionTxt()
 		case DynamicDescType_WithPost:
 			c.dynamic.Type = DynamicDescType_WithPost
 			c.dynamic.Content = cardOrigin.GetItem().GetContent()
@@ -805,10 +827,10 @@ func (c *CacheCard) prepare() {
 		if description == cardVideo.GetTitle() {
 			description = ""
 		}
-		// web接口好像还区分不了动态视频，先不处理了
 		actionText := card.GetDisplay().GetUsrActionTxt()
 		c.dynamic.Video.Action = actionText
 		c.dynamic.Video.Title = cardVideo.GetTitle()
+		c.dynamic.Video.Dynamic = cardVideo.GetDynamic()
 		if len(description) != 0 {
 			c.dynamic.Video.Desc = description
 		}
