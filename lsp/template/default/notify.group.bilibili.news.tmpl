@@ -36,13 +36,23 @@
     {{ end -}}
     {{ printf "%v\n%v\n%v%v%v%v" $msg .dynamic.Date $title .dynamic.Content $orgTip .dynamic.Text.Content -}}
 {{ else if eq .dynamic.Type 8 -}}
+    {{ $DyVideo := "的视频" -}}
+    {{ if eq .dynamic.Video.Action "发布了动态" -}}
+        {{ $DyVideo = "的动态视频" -}}
+    {{ end -}}
     {{ if .dynamic.WithOrigin -}}
-        {{ $msg = join "" (list .dynamic.User.Name "转发了" .dynamic.OriginUser.Name "的视频：") -}}
+        {{ $msg = join "" (list .dynamic.User.Name "转发了" .dynamic.OriginUser.Name $DyVideo "：") -}}
         {{ $orgTip = "\n\n原视频：\n" -}}
+    {{ else if eq $DyVideo "的动态视频" -}}
+        {{ $msg = join "" (list .dynamic.User.Name "发布了动态视频" "：") -}}
     {{ else -}}
         {{ $msg = join "" (list .dynamic.User.Name .dynamic.Video.Action "：") -}}
     {{ end -}}
-    {{ printf "%v\n%v\n%v%v%v%v\n%v\n" $msg .dynamic.Date $title .dynamic.Content $orgTip .dynamic.Video.Title .dynamic.Video.Desc -}}
+    {{ if eq $DyVideo "的动态视频" -}}
+        {{ printf "%v\n%v\n%v%v%v%v\n" $msg .dynamic.Date $title .dynamic.Content $orgTip .dynamic.Video.Dynamic -}}
+    {{ else -}}
+        {{ printf "%v\n%v\n%v%v%v%v\n标题：%v\n简介：%v\n" $msg .dynamic.Date $title .dynamic.Content $orgTip .dynamic.Video.Dynamic .dynamic.Video.Title .dynamic.Video.Desc -}}
+    {{ end -}}
     {{ pic .dynamic.Video.CoverUrl -}}
 {{ else if eq .dynamic.Type 64 -}}
     {{ $PostUrl := "" -}}

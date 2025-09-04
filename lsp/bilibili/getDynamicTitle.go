@@ -31,8 +31,5 @@ func getDynamicTitle(data []byte) string {
 		return ""
 	}
 	title := doc.Find(".opus-module-title__text").Text()
-	if title == "" {
-		return ""
-	}
 	return title
 }
