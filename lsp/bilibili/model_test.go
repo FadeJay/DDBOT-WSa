@@ -58,7 +58,7 @@ func TestModelNotify(t *testing.T) {
 func TestNewConcernLiveNotify(t *testing.T) {
 	notify := NewConcernLiveNotify(test.G1, nil)
 	assert.Nil(t, notify)
-	origUserInfo := NewUserInfo(test.UID1, test.ROOMID1, test.NAME1, "")
+	origUserInfo := NewUserInfo(test.UID1, test.ROOMID1, test.NAME1, "", "")
 	origLiveInfo := NewLiveInfo(origUserInfo, "", "", LiveStatus_Living)
 	notify = NewConcernLiveNotify(test.G1, origLiveInfo)
 	assert.NotNil(t, notify)
@@ -67,7 +67,7 @@ func TestNewConcernLiveNotify(t *testing.T) {
 func TestNewConcernNewsNotify(t *testing.T) {
 	notify := NewConcernNewsNotify(test.G1, nil, nil)
 	assert.Nil(t, notify)
-	origUserInfo := NewUserInfo(test.UID1, test.ROOMID1, test.NAME1, "")
+	origUserInfo := NewUserInfo(test.UID1, test.ROOMID1, test.NAME1, "", "")
 	origNewsInfo := NewNewsInfo(origUserInfo, test.DynamicID1, test.TIMESTAMP1)
 	origNewsInfo.Cards = []*Card{{}}
 	notify = NewConcernNewsNotify(test.G1, origNewsInfo, nil)
