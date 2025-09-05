@@ -1142,8 +1142,12 @@ func (c *QQClient) handleMetaEvent(wsmsg WebSocketMessage) {
 			c.Uin = int64(wsmsg.SelfID)
 		}
 		stat := c.getStatus()
+		c.oldOnline.Store(c.Online.Load())
 		c.Online.Store(stat.Online)
-		c.oldOnline.Store(stat.Online)
+		// 触发上线事件
+		if c.Online.Load() && !c.oldOnline.Load() {
+			c.BotOnlineEvent.dispatch(c, &BotOnlineEvent{})
+		}
 		c.alive = stat.Good
 		// BOT状态广播
 		go func() {
