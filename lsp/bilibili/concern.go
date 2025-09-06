@@ -177,6 +177,7 @@ func (c *Concern) Add(ctx mmsg.IMsgCtx,
 			infoResp.GetData().GetLiveRoom().GetRoomid(),
 			infoResp.GetData().GetName(),
 			infoResp.GetData().GetLiveRoom().GetUrl(),
+			infoResp.GetData().GetFace(),
 		)
 		log = log.WithField("name", userInfo.GetName())
 	} else {
@@ -354,6 +355,7 @@ func (c *Concern) FindUser(mid int64, load bool) (*UserInfo, error) {
 			resp.GetData().GetLiveRoom().GetRoomid(),
 			resp.GetData().GetName(),
 			resp.GetData().GetLiveRoom().GetUrl(),
+			resp.GetData().GetFace(),
 		)
 		newLiveInfo := NewLiveInfo(newUserInfo,
 			resp.GetData().GetLiveRoom().GetTitle(),

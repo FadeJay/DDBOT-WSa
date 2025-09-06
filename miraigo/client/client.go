@@ -1142,14 +1142,21 @@ func (c *QQClient) handleMetaEvent(wsmsg WebSocketMessage) {
 			c.Uin = int64(wsmsg.SelfID)
 		}
 		stat := c.getStatus()
+		c.oldOnline.Store(c.Online.Load())
 		c.Online.Store(stat.Online)
-		c.oldOnline.Store(stat.Online)
+		// 触发上线事件
+		if c.Online.Load() && !c.oldOnline.Load() {
+			c.BotOnlineEvent.dispatch(c, &BotOnlineEvent{})
+		}
 		c.alive = stat.Good
 		// BOT状态广播
 		go func() {
 			time.Sleep(time.Second * 5)
 			eventbus.BusObj.Publish("bot_online", c.Online.Load())
 		}()
+		if c.Online.Load() && len(offlineQueue) > 0 {
+			c.OnReconnect()
+		}
 	case "heartbeat":
 		logger.Tracef("收到心跳，BOT是否在线：%v", wsmsg.Status.Online)
 		c.oldOnline.Store(c.Online.Load())

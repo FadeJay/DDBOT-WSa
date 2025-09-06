@@ -7,6 +7,7 @@ package template
 import (
 	"errors"
 	"fmt"
+	"html/template"
 	"reflect"
 	"strconv"
 	"strings"
@@ -244,6 +245,7 @@ func builtins() FuncMap {
 		// json
 		"toGJson": toGJson,
 		"toJson":  toJson,
+		"rawJson": func(s string) template.JS { return template.JS(s) },
 
 		// Comparisons
 		"eq": eq, // ==

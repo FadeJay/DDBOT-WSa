@@ -41,7 +41,7 @@ func TestConcern_Remove(t *testing.T) {
 
 	c := initConcern(t)
 
-	origUserInfo := NewUserInfo(test.UID1, test.ROOMID1, test.NAME1, "")
+	origUserInfo := NewUserInfo(test.UID1, test.ROOMID1, test.NAME1, "", "")
 	assert.NotNil(t, origUserInfo)
 	_, err := c.AddGroupConcern(test.G1, test.UID1, test.BibiliLive)
 	assert.Nil(t, err)
@@ -59,7 +59,7 @@ func TestConcern_FindUserLiving(t *testing.T) {
 	origLiveInfo := NewLiveInfo(nil, "", "", LiveStatus_Living)
 	assert.Nil(t, origLiveInfo)
 
-	origUserInfo := NewUserInfo(test.UID1, test.ROOMID1, test.NAME1, "")
+	origUserInfo := NewUserInfo(test.UID1, test.ROOMID1, test.NAME1, "", "")
 	origLiveInfo = NewLiveInfo(origUserInfo, "", "", LiveStatus_Living)
 	assert.NotNil(t, origLiveInfo)
 
@@ -94,7 +94,7 @@ func TestConcern_FindUserNews(t *testing.T) {
 	origNewsInfo := NewNewsInfo(nil, test.DynamicID1, test.TIMESTAMP1)
 	assert.Nil(t, origNewsInfo)
 
-	origUserInfo := NewUserInfo(test.UID1, test.ROOMID1, test.NAME1, "")
+	origUserInfo := NewUserInfo(test.UID1, test.ROOMID1, test.NAME1, "", "")
 	origNewsInfo = NewNewsInfo(origUserInfo, test.DynamicID1, test.TIMESTAMP1)
 
 	err := c.AddNewsInfo(origNewsInfo)
@@ -175,7 +175,7 @@ func TestConcernNotify(t *testing.T) {
 	_, err = c.StateManager.AddGroupConcern(test.G2, test.UID1, News)
 	assert.Nil(t, err)
 
-	origUserInfo := NewUserInfo(test.UID1, test.ROOMID1, test.NAME1, "")
+	origUserInfo := NewUserInfo(test.UID1, test.ROOMID1, test.NAME1, "", "")
 	origLiveInfo := NewLiveInfo(origUserInfo, "mytitle", "", LiveStatus_Living)
 	origLiveInfo.liveStatusChanged = true
 
@@ -242,7 +242,7 @@ func TestConcern_GroupWatchNotify(t *testing.T) {
 	_, err := c.StateManager.AddGroupConcern(test.G1, test.UID1, Live.Add(News))
 	assert.Nil(t, err)
 
-	origUserInfo := NewUserInfo(test.UID1, test.ROOMID1, test.NAME1, "")
+	origUserInfo := NewUserInfo(test.UID1, test.ROOMID1, test.NAME1, "", "")
 	origLiveInfo := NewLiveInfo(origUserInfo, "", "", LiveStatus_Living)
 	assert.NotNil(t, origLiveInfo)
 

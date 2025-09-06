@@ -32,7 +32,7 @@ func TestStateManager_GetUserInfo(t *testing.T) {
 	defer test.CloseBuntdb(t)
 
 	c := initStateManager(t)
-	origUserInfo := NewUserInfo(test.UID1, test.ROOMID1, test.NAME1, "")
+	origUserInfo := NewUserInfo(test.UID1, test.ROOMID1, test.NAME1, "", "")
 	assert.NotNil(t, origUserInfo)
 	err := c.AddUserInfo(origUserInfo)
 	assert.Nil(t, err)
@@ -49,7 +49,7 @@ func TestStateManager_GetLiveInfo(t *testing.T) {
 
 	c := initStateManager(t)
 
-	origUserInfo := NewUserInfo(test.UID1, test.ROOMID1, test.NAME1, "")
+	origUserInfo := NewUserInfo(test.UID1, test.ROOMID1, test.NAME1, "", "")
 	origLiveInfo := NewLiveInfo(origUserInfo, "", "", LiveStatus_Living)
 	assert.NotNil(t, origLiveInfo)
 
@@ -86,7 +86,7 @@ func TestStateManager_GetNewsInfo(t *testing.T) {
 
 	c := initStateManager(t)
 
-	origUserInfo := NewUserInfo(test.UID1, test.ROOMID1, test.NAME1, "")
+	origUserInfo := NewUserInfo(test.UID1, test.ROOMID1, test.NAME1, "", "")
 	origNewsInfo := NewNewsInfo(origUserInfo, test.DynamicID1, test.TIMESTAMP1)
 
 	err := c.AddNewsInfo(origNewsInfo)
@@ -122,7 +122,7 @@ func TestStateManager_DeleteNewsAndLiveInfo(t *testing.T) {
 
 	c := initStateManager(t)
 
-	origUserInfo := NewUserInfo(test.UID1, test.ROOMID1, test.NAME1, "")
+	origUserInfo := NewUserInfo(test.UID1, test.ROOMID1, test.NAME1, "", "")
 	origNewsInfo := NewNewsInfo(origUserInfo, test.DynamicID1, test.TIMESTAMP1)
 	origLiveInfo := NewLiveInfo(origUserInfo, "", "", LiveStatus_Living)
 	assert.NotNil(t, origNewsInfo)
@@ -216,7 +216,7 @@ func TestStateManager_ClearByMid(t *testing.T) {
 
 	c := initStateManager(t)
 
-	origUserInfo := NewUserInfo(test.UID1, test.ROOMID1, test.NAME1, "")
+	origUserInfo := NewUserInfo(test.UID1, test.ROOMID1, test.NAME1, "", "")
 	origNewsInfo := NewNewsInfo(origUserInfo, test.DynamicID1, test.TIMESTAMP1)
 	origLiveInfo := NewLiveInfo(origUserInfo, "", "", LiveStatus_Living)
 	assert.NotNil(t, origNewsInfo)
