@@ -244,6 +244,12 @@ func ParseUserInfoResp(body []byte) (*UserInfo, error) {
 		return nil, err
 	}
 
+	// 查找 <body> 标签并判断 onload 属性
+	onload, exists := doc.Find("body").Attr("onload")
+	if exists && onload == "readygo()" {
+		return nil, errors.New("检测到人机验证，请稍后再试或尝试手动完成验证")
+	}
+
 	var userInfo *UserInfo
 	doc.Find("body > script[crossorigin=anonymous]").Each(func(i int, s *goquery.Selection) {
 		if userInfo != nil {
