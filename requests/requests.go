@@ -42,6 +42,7 @@ type option struct {
 	CookieJar           http.CookieJar
 	ResponseMiddleware  []middler.ResponseMiddler
 	AutoHeaderHost      bool
+	AutoHeaderReferer   bool
 	NotIgnoreEmpty      bool
 	Transport           *http.Transport
 }
@@ -172,6 +173,12 @@ func RequestAutoHostOption() Option {
 	}
 }
 
+func RequestAutoRefererOption() Option {
+	return func(o *option) {
+		o.AutoHeaderReferer = true
+	}
+}
+
 func NotIgnoreEmptyOption() Option {
 	return func(o *option) {
 		o.NotIgnoreEmpty = true
@@ -209,6 +216,26 @@ func GetResponseCookieOption(cookies *[]*http.Cookie) Option {
 	))
 }
 
+// ExtractCookieOption 提供一种从Option中提取Cookie的方法
+func ExtractCookieOption(opts []Option, cookieName string) string {
+	// 创建一个临时的option实例
+	tempOpt := &option{}
+	
+	// 应用所有选项到临时实例
+	for _, opt := range opts {
+		opt(tempOpt)
+	}
+	
+	// 查找指定名称的cookie
+	for _, cookie := range tempOpt.Cookies {
+		if cookie.Name == cookieName {
+			return cookie.Value
+		}
+	}
+	
+	return ""
+}
+
 func Do(f func(*gout.Client) *dataflow.DataFlow, out interface{}, options ...Option) error {
 	var (
 		opt  = new(option)
@@ -227,9 +254,16 @@ func Do(f func(*gout.Client) *dataflow.DataFlow, out interface{}, options ...Opt
 	if opt.Debug {
 		df.Debug(true)
 	}
-	if opt.AutoHeaderHost {
+	if opt.AutoHeaderHost || opt.AutoHeaderReferer {
 		if h, err := df.GetHost(); err == nil {
-			opt.Header["host"] = h
+			if opt.Header == nil {
+				opt.Header = make(gout.H)
+			}
+			if opt.AutoHeaderHost {
+				opt.Header["host"] = h
+			} else if opt.AutoHeaderReferer {
+				opt.Header["referer"] = "https://" + h
+			}
 		}
 	}
 	if len(opt.Cookies) > 0 {
