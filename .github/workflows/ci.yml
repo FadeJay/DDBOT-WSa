@@ -61,49 +61,42 @@ jobs:
           docker run --rm \
             -v "$PWD:/repo" \
             -w /repo \
-            -e BUILD_TIME="${BUILD_TIME}" \
-            -e GITHUB_SHA="${GITHUB_SHA}" \
-            rockylinux:8 bash -e << 'EOF'
+            -e BUILD_TIME="$BUILD_TIME" \
+            -e GITHUB_SHA="$GITHUB_SHA" \
+            rockylinux:8 bash -c "
+              set -e
 
-              echo "BUILD_TIME=$BUILD_TIME"
-              echo "GITHUB_SHA=$GITHUB_SHA"
+              echo BUILD_TIME=\$BUILD_TIME
+              echo GITHUB_SHA=\$GITHUB_SHA
 
-              # 基础工具
               dnf install -y epel-release curl tar xz make gcc gcc-c++ git
 
-              # 安装静态 FFmpeg
               curl -LO https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz
               tar -xf ffmpeg-release-amd64-static.tar.xz
               cp ffmpeg-*/ffmpeg /usr/local/bin/
               cp ffmpeg-*/ffprobe /usr/local/bin/
 
-              # 安装 Go 1.23.4
               curl -LO https://golang.org/dl/go1.23.4.linux-amd64.tar.gz
               rm -rf /usr/local/go
               tar -C /usr/local -xzf go1.23.4.linux-amd64.tar.gz
-              export PATH=/usr/local/go/bin:$PATH
+              export PATH=/usr/local/go/bin:\$PATH
               go version
 
-              # Go 依赖
               go mod tidy
               go mod download
 
-              # ldflags（最终稳定写法）
-              LDFLAGS="
-                -w -s
-                -X github.com/cnxysoft/DDBOT-WSa/lsp.BuildTime=$BUILD_TIME
-                -X github.com/cnxysoft/DDBOT-WSa/lsp.CommitId=$GITHUB_SHA
-              "
+              LDFLAGS=\"-w -s \
+                -X github.com/cnxysoft/DDBOT-WSa/lsp.BuildTime=\$BUILD_TIME \
+                -X github.com/cnxysoft/DDBOT-WSa/lsp.CommitId=\$GITHUB_SHA\"
 
-              echo "LDFLAGS=$LDFLAGS"
+              echo LDFLAGS=\$LDFLAGS
 
-              # 构建
               GOOS=linux GOARCH=amd64 \
               go build -buildvcs=false \
-                -ldflags "$LDFLAGS" \
+                -ldflags \"\$LDFLAGS\" \
                 -o DDBOT \
                 ./cmd
-EOF
+            "
 
       - name: Upload Linux amd64 binary
         uses: actions/upload-artifact@v4
