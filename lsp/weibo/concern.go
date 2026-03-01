@@ -1,16 +1,19 @@
 package weibo
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"strconv"
+	"time"
+
+	"github.com/Sora233/MiraiGo-Template/config"
 	"github.com/Sora233/MiraiGo-Template/utils"
 	"github.com/cnxysoft/DDBOT-WSa/lsp/concern"
 	"github.com/cnxysoft/DDBOT-WSa/lsp/concern_type"
 	"github.com/cnxysoft/DDBOT-WSa/lsp/mmsg"
 	localutils "github.com/cnxysoft/DDBOT-WSa/utils"
 	"github.com/tidwall/buntdb"
-	"strconv"
-	"time"
 )
 
 var logger = utils.GetModuleLogger("weibo-concern")
@@ -36,24 +39,85 @@ func (c *Concern) GetStateManager() concern.IStateManager {
 }
 
 func (c *Concern) Start() error {
-	c.UseEmitQueue()
-	c.StateManager.UseFreshFunc(c.EmitQueueFresher(func(p concern_type.Type, id interface{}) ([]concern.Event, error) {
-		uid := id.(int64)
-		if p.ContainAny(News) {
-			newsInfo, err := c.freshNews(uid)
-			if err != nil {
-				return nil, err
-			}
-			if len(newsInfo.Cards) == 0 {
-				return nil, nil
-			}
-			return []concern.Event{newsInfo}, nil
-
-		}
-		return nil, nil
-	}))
+	var weiboSW bool = config.GlobalConfig.GetBool("weibo.enable")
+	if !weiboSW {
+		return nil
+	}
+	c.StateManager.UseFreshFunc(c.fresh())
 	c.StateManager.UseNotifyGeneratorFunc(c.notifyGenerator())
 	return c.StateManager.Start()
+}
+
+func (c *Concern) fresh() concern.FreshFunc {
+	return func(ctx context.Context, eventChan chan<- concern.Event) {
+		t := time.NewTimer(time.Second * 3)
+		var interval time.Duration
+		if config.GlobalConfig != nil {
+			interval = config.GlobalConfig.GetDuration("weibo.interval")
+		}
+		if interval == 0 {
+			interval = time.Second * 20
+		}
+		for {
+			select {
+			case <-t.C:
+			case <-ctx.Done():
+				return
+			}
+			start := time.Now()
+			err := func() error {
+				defer func() { logger.WithField("cost", time.Now().Sub(start)).Tracef("watchCore news fresh done") }()
+				_, ids, types, err := c.StateManager.ListConcernState(func(groupCode int64, id interface{}, p concern_type.Type) bool {
+					return p.ContainAny(News)
+				})
+				if err != nil {
+					logger.Errorf("ListConcernState error %v", err)
+					return err
+				}
+				ids, types, err = c.GroupTypeById(ids, types)
+				if err != nil {
+					logger.Errorf("GroupTypeById error %v", err)
+					return err
+				}
+				if len(ids) == 0 {
+					// 没有订阅的话，就不要刷新了
+					logger.Trace("no concern, skip fresh")
+					return nil
+				}
+				sendNewsInfo := func(info *NewsInfo) {
+					addNewsInfoErr := c.AddNewsInfo(info)
+					if addNewsInfoErr != nil {
+						// 如果因为系统原因add失败，会造成重复推送
+						// 按照ddbot的原则，选择不推送，而非重复推送
+						logger.WithField("uid", info.Uid).Errorf("add live info error %v", err)
+					} else {
+						eventChan <- info
+					}
+				}
+				for _, id := range ids {
+					uid := id.(int64)
+					newsInfo, err := c.freshNews(uid)
+					if err != nil {
+						return err
+					}
+					if len(newsInfo.Cards) == 0 {
+						return nil
+					}
+					sendNewsInfo(newsInfo)
+					return nil
+				}
+				return nil
+			}()
+
+			end := time.Now()
+			if err == nil {
+				logger.WithField("cost", end.Sub(start)).Tracef("watchCore loop done")
+			} else {
+				logger.WithField("cost", end.Sub(start)).Errorf("watchCore error %v", err)
+			}
+			t.Reset(interval)
+		}
+	}
 }
 
 func (c *Concern) Stop() {
@@ -157,7 +221,12 @@ func (c *Concern) freshNews(uid int64) (*NewsInfo, error) {
 		log.Errorf("ApiContainerGetIndexCards error %v", err)
 		return nil, err
 	}
-	if cardResp.GetOk() != 1 {
+	if cardResp.GetOk() == -100 {
+		log.WithField("状态", cardResp.GetOk()).
+			WithField("验证URL", cardResp.GetUrl()).
+			Errorf("获取用户微博失败：触发了滑块验证")
+		return nil, errors.New("ApiContainerGetIndexCards not success")
+	} else if cardResp.GetOk() != 1 {
 		log.WithField("respOk", cardResp.GetOk()).
 			WithField("respMsg", cardResp.GetMsg()).
 			Errorf("ApiContainerGetIndexCards not ok")
